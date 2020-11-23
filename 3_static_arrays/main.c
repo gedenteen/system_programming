@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #define N 5
 
@@ -53,6 +54,68 @@ void task4(int array[][N]) {
     }
 }
 
+int task5(int rez_arr[][N]) {
+///построение магичечкого квадрата, метод террас
+    if (N % 2 == 0) {
+        printf("for even N is not implemented \n");
+        return 1;
+    }
+    ///Выделение памяти:
+    int M = N + N - 1; ///размерность для вспомогательной матрицы
+    int i_beg, j_beg, i, j;
+    int **tmp_arr = (int**) malloc(M * sizeof(int*)); ///вспомогательная матрица
+    for(i = 0; i < M; i++) {
+        tmp_arr[i] = (int*) malloc(M * sizeof(int));
+    }
+    ///выбор диагонали:
+    int num = 1;
+    for (i_beg = M / 2, j_beg = 0; i_beg < M; i_beg++, j_beg++) {
+        ///проход по диагонали:
+        int cnt = 0;
+        for (i = i_beg, j = j_beg; cnt < N; i--, j++, cnt++, num++) {
+            tmp_arr[i][j] = num;
+        }
+    }
+    ///проверка:
+    /*for (i = 0; i < M; i++) {
+        for (j = 0; j < M; j++)
+            printf("%2d ", tmp_arr[i][j]);
+        printf("\n");
+    }*/
+    ///перемещение террас:
+    for (j = N / 2 + 1; j < N / 2 + 1 + N ; j++) {
+        for (i = 0; i <= N / 2 ; i++) { ///сверху
+            if (tmp_arr[i][j] != 0)
+                tmp_arr[i + N][j] = tmp_arr[i][j];
+        }
+        for (i = N / 2 + N; i < M ; i++) { ///снизу
+            if (tmp_arr[i][j] != 0)
+                tmp_arr[i - N][j] = tmp_arr[i][j];
+        }
+    }
+    for (i = N / 2 + 1; i < N / 2 + 1 + N ; i++) {
+        for (j = 0; j <= N / 2 ; j++) { ///слева
+            if (tmp_arr[i][j] != 0)
+                tmp_arr[i][j + N] = tmp_arr[i][j];
+        }
+        for (j = N / 2 + N; j < M ; j++) { ///справа
+            if (tmp_arr[i][j] != 0)
+                tmp_arr[i][j - N] = tmp_arr[i][j];
+        }
+    }
+    ///запись результата:
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            rez_arr[i][j] = tmp_arr[i + N / 2][j + N / 2];
+        }
+    }
+    ///освобождение памяти:
+    for(i = 0; i < M; i++)
+        free(tmp_arr[i]);
+    free(tmp_arr);
+    return 0;
+}
+
 int main() {
     int array[N][N] = {0};
 
@@ -64,6 +127,9 @@ int main() {
     task3(array); task1(array);
     printf("\ntask4: \n");
     task4(array); task1(array);
+    printf("\ntask5: \n");
+    if (task5(array) == 0)
+        task1(array);
 
     return 0;
 }
