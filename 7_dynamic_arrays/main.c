@@ -20,9 +20,6 @@ int main() {
     struct subscriber* p_book = NULL; ///указатель, по которому хранятся записи
     int cnt_records = 0; ///количество записей в книге
     Phonebook_init(&p_book, &cnt_records);
-    printf("\t __test__ cnt_records = %d \n", cnt_records);
-    printf("\t __test__ sizeof(p_book) = %ld \n", sizeof(p_book));
-    printf("\t __test__ firstname = %s \n", p_book[0].firstname);
     ///меню с выбором команд:
     int ans = 0;
     while (ans != 5) {
@@ -33,11 +30,12 @@ int main() {
         printf("4. search record \n");
         printf("5. exit \n");
 
-        scanf("%d", &ans);//fgets(ans, 1, stdin);
-        while(ans < 1 || ans > 5) {
+        scanf("%d", &ans);
+        if (ans < 1 || ans > 5) {
             printf("wrong number of command \n");
-            scanf("%d", &ans);
+            continue;
         }
+        fgetc(stdin); ///считать '\n' чтобы правильно работали fgets()
 
         switch (ans) {
         case 1:
@@ -69,25 +67,22 @@ void Phonebook_init(struct subscriber **p_book, int *cnt_records) {
         perror("Error in Pronebook_init() with malloc \n");
         exit(1);
     }
-    strcpy((*p_book)[0].firstname, "Anton");
-    strcpy((*p_book)[0].lastname, "Antonov");
-    strcpy((*p_book)[0].phone, "8-999-888-77-66");
-    strcpy((*p_book)[1].firstname, "Vladimir");
-    strcpy((*p_book)[1].lastname, "Antonov");
-    strcpy((*p_book)[1].phone, "8-123-456-78-90");
+    strcpy((*p_book)[0].firstname, "Anton\n");
+    strcpy((*p_book)[0].lastname, "Antonov\n");
+    strcpy((*p_book)[0].phone, "8-999-888-77-66\n");
+    strcpy((*p_book)[1].firstname, "Vladimir\n");
+    strcpy((*p_book)[1].lastname, "Antonov\n");
+    strcpy((*p_book)[1].phone, "8-123-456-78-90\n");
     *cnt_records = 2;
-
-    printf("\t __test__ firstname = %s \n", (*p_book)[0].firstname);
-    printf("\t __test__ firstname = %s \n", (*p_book)[1].firstname);
 }
 
 ///1. вывести все "непустые" записи справочника:
 void Phonebook_print(struct subscriber *p_book, int cnt_records) {
     for (int i = 0; i < cnt_records; i++) {
         printf("subscriber %d: \n", i);
-        printf("\t firstname = %s \n", p_book[i].firstname);
-        printf("\t lastname = %s \n", p_book[i].lastname);
-        printf("\t phone = %s \n", p_book[i].phone);
+        printf("\t firstname = %s", p_book[i].firstname);
+        printf("\t lastname = %s", p_book[i].lastname);
+        printf("\t phone = %s", p_book[i].phone);
     }
 }
 
@@ -102,11 +97,11 @@ void Phonebook_add(struct subscriber **p_book, int *cnt_records) {
     }
 
     printf("enter firstname: ");
-    scanf("%s", (*p_book)[*cnt_records -1].firstname);
+    fgets((*p_book)[*cnt_records -1].firstname, 20, stdin);
     printf("enter lastname: ");
-    scanf("%s", (*p_book)[*cnt_records -1].lastname);
+    fgets((*p_book)[*cnt_records -1].lastname, 20, stdin);
     printf("enter phone number: ");
-    scanf("%s", (*p_book)[*cnt_records -1].phone);
+    fgets((*p_book)[*cnt_records -1].phone, 20, stdin);
 }
 
 ///3. удалить запись по индексу:
@@ -114,9 +109,10 @@ int Phonebook_delete(struct subscriber **p_book, int *cnt_records) {
     printf("enter index of deleting record: ");
     int ind;
     scanf("%d", &ind);
+    fgetc(stdin); ///считать '\n' чтобы правильно работали fgets()
     if (ind < 0 || ind >= *cnt_records) {
         printf("Error in Phonebook_delete(): wrong index");
-        exit(1);
+        return 0;
     }
     ///передвинуть удаляемую запись в конец:
     struct subscriber str_temp = (*p_book)[*cnt_records -1];
@@ -138,6 +134,7 @@ int Phonebook_search(struct subscriber *p_book, int cnt_records) {
     printf("search by lastname or phone? l/p ");
     char type;
     scanf("\n%c", &type);
+    fgetc(stdin); ///считать '\n' чтобы правильно работали fgets()
     if (type != 'l' && type != 'p') {
         printf("Error in Phonebook_search(): wrong value \n");
         return 1;
@@ -145,16 +142,16 @@ int Phonebook_search(struct subscriber *p_book, int cnt_records) {
 
     printf("enter string for searching: ");
     char str[20];
-    scanf("%s", str);
+    fgets(str, 20, stdin);
 
     int records_found = 0; ///сколько записей найдено
     if (type == 'l') { ///если поиск по фамилии
         for (int i = 0; i < cnt_records; i++) {
             if (strcmp(p_book[i].lastname, str) == 0) {
                 printf("subscriber %d: \n", i);
-                printf("\t firstname = %s \n", p_book[i].firstname);
-                printf("\t lastname = %s \n", p_book[i].lastname);
-                printf("\t phone = %s \n", p_book[i].phone);
+                printf("\t firstname = %s", p_book[i].firstname);
+                printf("\t lastname = %s", p_book[i].lastname);
+                printf("\t phone = %s", p_book[i].phone);
                 records_found++;
             }
         }
@@ -163,9 +160,9 @@ int Phonebook_search(struct subscriber *p_book, int cnt_records) {
         for (int i = 0; i < cnt_records; i++) {
             if (strcmp(p_book[i].phone, str) == 0) {
                 printf("subscriber %d: \n", i);
-                printf("\t firstname = %s \n", p_book[i].firstname);
-                printf("\t lastname = %s \n", p_book[i].lastname);
-                printf("\t phone = %s \n", p_book[i].phone);
+                printf("\t firstname = %s", p_book[i].firstname);
+                printf("\t lastname = %s", p_book[i].lastname);
+                printf("\t phone = %s", p_book[i].phone);
                 records_found++;
             }
         }
