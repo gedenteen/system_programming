@@ -1,0 +1,15 @@
+отключить рандомизацию адресного пространства:
+$ echo 0 | sudo tee /proc/sys/kernel/randomize_va_space
+подробнее: https://askubuntu.ru/questions/173451/kak-ja-mogu-vremenno-otkljuchit-aslr-randomizacija-raspolozhenija-adresnogo-prostranstva
+
+отключить канарейку:
+$ -fno-stack-protector
+
+изменить поток stdin внутри gdb:
+$ gdb ./password.exe
+(gdb) b main
+(gdb) run --mode=NUM --verbose=LOW < password.in
+подробнее: https://fooobar.com/questions/868163/gdb-trouble-with-stdin-redirection
+
+
+0x0000555555554792
