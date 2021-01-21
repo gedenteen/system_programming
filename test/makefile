@@ -1,4 +1,4 @@
-all: test0 test1 test2 test3
+all: test0 test1 test2 test3 test4
 
 test0:
 	gcc -Wall -g test0.c -o test0.exe
@@ -11,3 +11,6 @@ test2:
 
 test3:
 	gcc -Wall -g test3.c -o test3.exe
+	
+test4:
+	gcc -Wall -g test4.c -o test4.exe
