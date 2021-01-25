@@ -10,6 +10,3 @@ $ gdb ./password.exe
 (gdb) b main
 (gdb) run --mode=NUM --verbose=LOW < password.in
 подробнее: https://fooobar.com/questions/868163/gdb-trouble-with-stdin-redirection
-
-
-0x0000555555554792
