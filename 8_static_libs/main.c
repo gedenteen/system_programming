@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "lib_mymath.h"
 
 int main() {
 	int command = 0, num1, num2;
