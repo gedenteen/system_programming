@@ -1,4 +1,3 @@
-#создание объектных файлов:
 all: create_object_files create_archive linking
 
 create_object_files: 
