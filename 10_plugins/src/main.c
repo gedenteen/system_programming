@@ -24,8 +24,12 @@ int ProcessParameters(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 	int i;
-	int (*func_ptr[argc])(int, int); //массив указателей на функции из плагинов
-	char **func_name = (char**) malloc(argc * sizeof(char*)); //массив имен функций из плагинов
+	//массив указателей на функции из плагинов:
+	int (**func_ptr)(int, int); 
+	//выделить память под этот массив:
+	func_ptr = (int (**)(int,  int)) malloc(argc * sizeof(int*));
+	//массив имен функций из плагинов:
+	char **func_name = (char**) malloc(argc * sizeof(char*)); 
 	
 	//подгрузить функции из плагинов, имена плагинов задаются как параметры main():
 	for (i = 1; i < argc; i++) {
