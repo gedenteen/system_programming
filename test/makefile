@@ -1,4 +1,5 @@
-all: test0 test1 test2 test3 test4 test5 cursed0 cursed1 cursed2 cursed3 cursed4
+all: test0 test1 test2 test3 test4 test5 test6 \
+ cursed0 cursed1 cursed2 cursed3 cursed4
 
 test0:
 	gcc -Wall -g test0.c -o test0
@@ -20,6 +21,9 @@ test5:
 	
 run5:
 	LD_LIBRARY_PATH=.:LD_LIBRARY_PATH ./test5
+
+test6:
+	gcc -Wall -g test6.c -o test6
 	
 cursed0:
 	gcc cursed0.c -o cursed0.exe -lncurses
