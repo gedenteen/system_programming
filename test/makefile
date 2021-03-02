@@ -1,4 +1,4 @@
-all: test0 test1 test2 test3 test4 test5
+all: test0 test1 test2 test3 test4 test5 cursed0 cursed1 cursed2 cursed3 cursed4
 
 test0:
 	gcc -Wall -g test0.c -o test0
@@ -20,6 +20,21 @@ test5:
 	
 run5:
 	LD_LIBRARY_PATH=.:LD_LIBRARY_PATH ./test5
+	
+cursed0:
+	gcc cursed0.c -o cursed0.exe -lncurses
+	
+cursed1:
+	gcc cursed1.c -o cursed1.exe -lncurses
+		
+cursed2:
+	gcc cursed2.c -o cursed2.exe -lncurses
+		
+cursed3:
+	gcc cursed3.c -o cursed3.exe -lncurses
+		
+cursed4:
+	gcc cursed4.c -o cursed4.exe -lncurses
 	
 clean:
 	rm -rf test?
