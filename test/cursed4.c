@@ -19,7 +19,7 @@ int main(int argc, char ** argv)
 	char name[MAX_NAME_LEN + 1];
 	initscr();
 	signal(SIGWINCH, sig_winch);
-	curs_set(TRUE);
+	curs_set(0);
 	start_color();
 	refresh();
 	init_pair(1, COLOR_YELLOW, COLOR_BLUE);

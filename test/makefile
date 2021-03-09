@@ -1,5 +1,5 @@
 all: test0 test1 test2 test3 test4 test5 test6 test7 \
- cursed0 cursed1 cursed2 cursed3 cursed4
+ cursed0 cursed1 cursed2 cursed3 cursed4 cursed5
 
 test0:
 	gcc -Wall -g test0.c -o test0
@@ -42,6 +42,9 @@ cursed3:
 		
 cursed4:
 	gcc cursed4.c -o cursed4.exe -lncurses
+	
+cursed5:
+	gcc cursed5.c -o cursed5.exe -lncurses
 	
 clean:
 	rm -rf test?
