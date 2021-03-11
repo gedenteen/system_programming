@@ -1,2 +1,2 @@
 all:
-	gcc main.c -o main.exe -lncurses
+	gcc -Wall -g main.c -o main.exe -lncurses
