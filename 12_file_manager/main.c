@@ -7,32 +7,50 @@
 #include <string.h>
 #include <malloc.h>
 
-int min(int a, int b) {
+int Min(int a, int b) {
 	if (a < b)
 		return a;
 	else
 		return b;
 }
 
-void handling_SIGWINCH(int signo) { //обработчик сигнала SIGWINCH
+void Handling_SIGWINCH(int signo) { //обработчик сигнала SIGWINCH
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
 	resizeterm(size.ws_row, size.ws_col); //изменить размеры окна
 }
 
-int print_files(WINDOW *wnd, struct dirent **namelist, int n, 
-	        int upper_bound, int lower_bound) {
+int Print_files(WINDOW *wnd, struct dirent **namelist, int n, 
+	        int upper_bound, int lower_bound, int chosen_row) {
 	werase(wnd); //заполнить окно пробелами
-	for (int i = upper_bound; i < min(n, lower_bound); i++) { 
-		//if (i == chosen_row)
-		//	wattron(wnd, COLOR_PAIR(1));
-		//else
-		//	wattron (wnd, COLOR_PAIR(2));
+	for (int i = upper_bound; i < Min(n, lower_bound); i++) { 
 		wmove(wnd, i - upper_bound, 0);
-		wprintw(wnd, "%s", namelist[i]->d_name);
-		wrefresh(wnd);
-	}	        
+		if (i == chosen_row) {
+			wattron(wnd, COLOR_PAIR(1));
+			wprintw(wnd, "%s", namelist[i]->d_name);
+			wattron (wnd, COLOR_PAIR(2));
+		}
+		else {
+			wprintw(wnd, "%s", namelist[i]->d_name);
+		}
+	}
+	wrefresh(wnd);	        
 	return 0;	        
+}
+
+int Change_chosen_row(WINDOW *wnd, struct dirent **namelist,
+		      int upper_bound, int *chosen_row, int offset) {
+	wattron(wnd, COLOR_PAIR(2));
+	wmove(wnd, *chosen_row - upper_bound, 0);
+	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
+
+	*chosen_row += offset; //смещение строки
+
+	wattron(wnd, COLOR_PAIR(1));
+	wmove(wnd, *chosen_row - upper_bound, 0);
+	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
+	wattron (wnd, COLOR_PAIR(2));
+	wrefresh(wnd);
 }
 
 int main() {
@@ -40,11 +58,10 @@ int main() {
 	WINDOW * subwnd1;
 	
 	initscr();
-	signal(SIGWINCH, handling_SIGWINCH);
+	signal(SIGWINCH, Handling_SIGWINCH);
 	cbreak();
 	curs_set(FALSE); //курсор невидимый
 	start_color(); //начать работу с цветом терминала (ncurses)
-	//refresh();
 	
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
@@ -53,13 +70,12 @@ int main() {
 	box(wnd1, '|', '-'); //символы для границ окна
 	//под-окно, чтобы не затереть границы окна:
 	subwnd1 = derwin(wnd1, size.ws_row - 2, mid_of_terminal - 2, 1, 1); 
-	//wprintw(subwnd1, "Hello, brave new curses world!\n");
 	wrefresh(wnd1);
 	
 	/// второе окно: ///
 	wnd2 = newwin(size.ws_row, mid_of_terminal, 0, mid_of_terminal); 
-	init_pair(1, COLOR_BLACK, COLOR_YELLOW); 
-	init_pair(2, COLOR_WHITE, COLOR_BLACK);
+	init_pair(1, COLOR_BLACK, COLOR_YELLOW); //цвет для выделения выбранного файла
+	init_pair(2, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
 	wbkgd(wnd2, COLOR_PAIR(1) | A_BOLD);
 	box(wnd2, '|', '-');
 	wrefresh(wnd2);
@@ -75,17 +91,8 @@ int main() {
 	n = scandir(dir_name, &namelist, 0, alphasort); //получить массив имен файлов (отсортированный)
 	if (n < 0)
 		perror("scandir");
-	else {
-		for (int i = upper_bound; i < min(n, lower_bound); i++) { 
-			if (i == chosen_row)
-				wattron(subwnd1, COLOR_PAIR(1));
-			else
-				wattron (subwnd1, COLOR_PAIR(2));
-			wmove(subwnd1, i, 0);
-			wprintw(subwnd1, "%s", namelist[i]->d_name);
-			wrefresh(subwnd1);
-		}
-	}
+	else 
+		Print_files(subwnd1, namelist, n, upper_bound, lower_bound, chosen_row);
 	
 	char ch;
 	wmove(subwnd1, 0, mid_of_terminal - 5); //переместиться за точку, чтобы не перекрывать
@@ -96,28 +103,22 @@ int main() {
 				upper_bound--;
 				lower_bound--;
 				chosen_row--;
-				print_files(subwnd1, namelist, n, upper_bound, lower_bound);\
+				Print_files(subwnd1, namelist, n, upper_bound, lower_bound, chosen_row);
 			}
 			else {	
-				wattron(subwnd1, COLOR_PAIR(2));
-				wmove(subwnd1, chosen_row - upper_bound, 0);
-				wprintw(subwnd1, "%s", namelist[chosen_row]->d_name);
-				chosen_row--;
+				Change_chosen_row(subwnd1, namelist, upper_bound, &chosen_row, -1);
 			}
 		}
-		else if (ch == 115) {
+		else if (ch == 115) { //'s'
 			//если выделена самая нижняя строка, но ниже есть еще файлы:
 			if (chosen_row == lower_bound - 1 && chosen_row < n - 1) {
 				upper_bound++;
 				lower_bound++;
 				chosen_row++;
-				print_files(subwnd1, namelist, n, upper_bound, lower_bound);
+				Print_files(subwnd1, namelist, n, upper_bound, lower_bound, chosen_row);
 			}
 			else if (chosen_row < n - 1) { //'s'
-				wattron(subwnd1, COLOR_PAIR(2));
-				wmove(subwnd1, chosen_row - upper_bound, 0);
-				wprintw(subwnd1, "%s", namelist[chosen_row]->d_name);
-				chosen_row++;
+				Change_chosen_row(subwnd1, namelist, upper_bound, &chosen_row, 1);
 			}
 			else
 				chosen_row = n - 1;
@@ -150,6 +151,11 @@ int main() {
 			dir_name = realloc(dir_name, sizeof(char) * new_dir_len);
 			strcat(dir_name, "/"); 
 			strcat(dir_name, namelist[chosen_row]->d_name); 
+			/*wmove(subwnd1, 0, 10); //удалить 
+			wprintw(subwnd1, "%s", dir_name); //удалить
+			wrefresh(subwnd1);
+			if (chosen_row > 5)
+				while(1){}*/
 			
 			chosen_row = 0; //выбранная строка в новой директории - это '.'
 			werase(subwnd1); //заполнить окно пробелами
@@ -157,26 +163,8 @@ int main() {
 				free(namelist[i]);
 			free(namelist);
 			n = scandir(dir_name, &namelist, 0, alphasort); //получить новый массив
-			
-			//wmove(subwnd1, 0, 5); wprintw(subwnd1, "n=%d", n); //удалить
-			for (int i = upper_bound; i < min(n, lower_bound); i++) { 
-				if (i == chosen_row)
-					wattron(subwnd1, COLOR_PAIR(1));
-				else
-					wattron (subwnd1, COLOR_PAIR(2));
-				wmove(subwnd1, i  - upper_bound, 0);
-				wprintw(subwnd1, "%s", namelist[i]->d_name);
-				//wmove(subwnd1, 0, 10); wprintw(subwnd1, "i=%d", i); //удалить
-				wrefresh(subwnd1);
-			}
-			//wmove(subwnd1, 0, 15); wprintw(subwnd1, "ok"); //удалить
+			Print_files(subwnd1, namelist, n, upper_bound, lower_bound, chosen_row);
 		}
-		wattron(subwnd1, COLOR_PAIR(1));
-		wmove(subwnd1, chosen_row - upper_bound, 0);
-		wprintw(subwnd1, "%s", namelist[chosen_row]->d_name);
-		wattron (subwnd1, COLOR_PAIR(2));
-		wrefresh(subwnd1);
-		
 		wmove(subwnd1, 0, mid_of_terminal - 5);
 	}
 	
