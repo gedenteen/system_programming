@@ -40,51 +40,48 @@ int Print_files(WINDOW *wnd, struct dirent **namelist, int n,
 
 int Change_chosen_row(WINDOW *wnd, struct dirent **namelist,
 		      int upper_bound, int *chosen_row, int offset) {
-	wattron(wnd, COLOR_PAIR(2));
+	wattron(wnd, COLOR_PAIR(2)); //убрать "подсвечивание" старой выбранной строки
 	wmove(wnd, *chosen_row - upper_bound, 0);
 	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
-
 	*chosen_row += offset; //смещение строки
-
-	wattron(wnd, COLOR_PAIR(1));
+	wattron(wnd, COLOR_PAIR(1)); //добавить "подсвечивание" новой выбранной строки
 	wmove(wnd, *chosen_row - upper_bound, 0);
 	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
 	wattron (wnd, COLOR_PAIR(2));
 	wrefresh(wnd);
+	return 0;
 }
 
 int main() {
-	WINDOW * wnd1, *wnd2;
-	WINDOW * subwnd1;
-	
 	initscr();
 	signal(SIGWINCH, Handling_SIGWINCH);
 	cbreak();
 	curs_set(FALSE); //курсор невидимый
-	start_color(); //начать работу с цветом терминала (ncurses)
 	
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
 	int mid_of_terminal = size.ws_col / 2;
+	
+	WINDOW *wnd1, *wnd2;
+	WINDOW *subwnd1, *subwnd2;
+	//первое окно:
 	wnd1 = newwin(size.ws_row, mid_of_terminal, 0, 0); //задать размеры окна
 	box(wnd1, '|', '-'); //символы для границ окна
 	//под-окно, чтобы не затереть границы окна:
 	subwnd1 = derwin(wnd1, size.ws_row - 2, mid_of_terminal - 2, 1, 1); 
 	wrefresh(wnd1);
-	
-	/// второе окно: ///
+	//второе окно:
 	wnd2 = newwin(size.ws_row, mid_of_terminal, 0, mid_of_terminal); 
+	box(wnd2, '|', '-');
+	subwnd2 = derwin(wnd2, size.ws_row - 2, mid_of_terminal, 1, mid_of_terminal + 1); 
+	wrefresh(wnd2);
+	//цвета:
+	start_color(); //начать работу с цветом терминала (ncurses)
 	init_pair(1, COLOR_BLACK, COLOR_YELLOW); //цвет для выделения выбранного файла
 	init_pair(2, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
-	wbkgd(wnd2, COLOR_PAIR(1) | A_BOLD);
-	box(wnd2, '|', '-');
-	wrefresh(wnd2);
-	wmove(wnd2, 9, 15);
-	wprintw(wnd2, "Press any key to continue...");
-	wrefresh(wnd2);
-	
+	//прочитать файлы:
 	struct dirent **namelist;
-	int n, chosen_row = 0; //кол-во файлов, выбранная строка (файл)
+	int n, chosen_row = 0; //всего файлов, выбранная строка (файл)
 	int upper_bound = 0, lower_bound = size.ws_row - 2; //границы выводимых файлов
 	char* dir_name = (char*) malloc(sizeof(char) * 2); //путь к выбранной директории
 	strcpy(dir_name, "."); //изначально выбранная директория = папка, откуда запускается программа
@@ -124,10 +121,13 @@ int main() {
 				chosen_row = n - 1;
 		}
 		else if (ch == 113) { //'q'
-			delwin(subwnd1); //удалить структуру, но текст останется
+			for (int i = 0; i < n; i++) //очистить память для массива файлов
+				free(namelist[i]);
+			free(namelist);
+			free(dir_name); //очистить строку с путем по папкам
+			delwin(subwnd1); //удалить структуры окон
 			delwin(wnd1);
 			delwin(wnd2);
-			//getch();
 			endwin(); //конец работы с ncurses
 			exit(EXIT_SUCCESS);
 		}
@@ -143,20 +143,16 @@ int main() {
 			if (opendir(new_dir_name) == NULL) { //если указан файл, а не папка
 				free(new_dir_name);
 				wmove(subwnd1, 0, 10); 
-				wprintw(subwnd1, "this isn't a file");
+				wprintw(subwnd1, "this isn't a folder");
 				wrefresh(subwnd1);
 				continue;
 			}
 			free(new_dir_name); //временная строка больше не нужна
+			//проделать все то же самое с основной строкой:
 			dir_name = realloc(dir_name, sizeof(char) * new_dir_len);
 			strcat(dir_name, "/"); 
 			strcat(dir_name, namelist[chosen_row]->d_name); 
-			/*wmove(subwnd1, 0, 10); //удалить 
-			wprintw(subwnd1, "%s", dir_name); //удалить
-			wrefresh(subwnd1);
-			if (chosen_row > 5)
-				while(1){}*/
-			
+			//изменить данные:
 			chosen_row = 0; //выбранная строка в новой директории - это '.'
 			werase(subwnd1); //заполнить окно пробелами
 			for (int i = 0; i < n; i++) //очистить память для массива файлов
@@ -169,12 +165,17 @@ int main() {
 	}
 	
 	//TODO: баг при открытии CUDA
-	//TODO: нужно освобождение памяти namelist и dir_name
 	//TODO: обработка ошибок
+	/*
+	for (int i = 0; i < n; i++) //очистить память для массива файлов
+		free(namelist[i]);
+	free(namelist);
+	free(dir_name);
 	delwin(subwnd1); //удалить структуру, но текст останется
 	delwin(wnd1);
 	delwin(wnd2);
 	getch();
 	endwin(); //конец работы с ncurses
-	return 0;
+	*/
+	return -1;
 }
