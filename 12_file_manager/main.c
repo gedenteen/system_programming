@@ -7,21 +7,24 @@
 #include <string.h>
 #include <malloc.h>
 
-int Min(int a, int b) {
+int Min(int a, int b) 
+{
 	if (a < b)
 		return a;
 	else
 		return b;
 }
 
-void Handling_SIGWINCH(int signo) { //обработчик сигнала SIGWINCH
+void Handling_SIGWINCH(int signo) 
+{ //обработчик сигнала SIGWINCH
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
 	resizeterm(size.ws_row, size.ws_col); //изменить размеры окна
 }
 
 int Print_files(WINDOW *wnd, struct dirent **namelist, int n, 
-	        int upper_bound, int lower_bound, int chosen_row) {
+	int upper_bound, int lower_bound, int chosen_row) 
+{
 	werase(wnd); //заполнить окно пробелами
 	for (int i = upper_bound; i < Min(n, lower_bound); i++) { 
 		wmove(wnd, i - upper_bound, 0);
@@ -39,7 +42,8 @@ int Print_files(WINDOW *wnd, struct dirent **namelist, int n,
 }
 
 int Change_chosen_row(WINDOW *wnd, struct dirent **namelist,
-		      int upper_bound, int *chosen_row, int offset) {
+		      int upper_bound, int *chosen_row, int offset) 
+{
 	wattron(wnd, COLOR_PAIR(2)); //убрать "подсвечивание" старой выбранной строки
 	wmove(wnd, *chosen_row - upper_bound, 0);
 	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
@@ -49,6 +53,22 @@ int Change_chosen_row(WINDOW *wnd, struct dirent **namelist,
 	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
 	wattron (wnd, COLOR_PAIR(2));
 	wrefresh(wnd);
+	return 0;
+}
+
+int Key_up(WINDOW *wnd, struct dirent **namelist, int n,
+	int *chosen_row, int *upper_bound, int *lower_bound) 
+{ //функция для нажатия клавиши вверх ('w')
+	//если выбранная строка самая верхняя, но выше есть еще файлы:
+	if (*chosen_row == *upper_bound && *upper_bound > 0) {
+		(*upper_bound)--; //тогда уменьшить границы на 1
+		(*lower_bound)--;
+		(*chosen_row)--; //выбранная строка тоже на -1
+		Print_files(wnd, namelist, n, *upper_bound, *lower_bound, *chosen_row);
+	}
+	else { //иначе изменить только выбранную строку
+		Change_chosen_row(wnd, namelist, *upper_bound, chosen_row, -1);
+	}
 	return 0;
 }
 
@@ -96,7 +116,7 @@ int main() {
 	//надо отключить вывод символов
 	while ((ch = wgetch(subwnd1)) != 10) {
 		if (ch == 119 && chosen_row > 0) { //'w'
-			if (chosen_row == upper_bound && upper_bound > 0) {
+			/*if (chosen_row == upper_bound && upper_bound > 0) {
 				upper_bound--;
 				lower_bound--;
 				chosen_row--;
@@ -104,7 +124,10 @@ int main() {
 			}
 			else {	
 				Change_chosen_row(subwnd1, namelist, upper_bound, &chosen_row, -1);
-			}
+			}*/
+			Key_up(subwnd1, namelist, n, &chosen_row, &upper_bound, &lower_bound);
+			//wprintw(subwnd1, " chosen_row=%d", chosen_row); 
+			//wrefresh(subwnd1);
 		}
 		else if (ch == 115) { //'s'
 			//если выделена самая нижняя строка, но ниже есть еще файлы:
@@ -145,6 +168,7 @@ int main() {
 				wmove(subwnd1, 0, 10); 
 				wprintw(subwnd1, "this isn't a folder");
 				wrefresh(subwnd1);
+				wmove(subwnd1, 0, mid_of_terminal - 5);
 				continue;
 			}
 			free(new_dir_name); //временная строка больше не нужна
