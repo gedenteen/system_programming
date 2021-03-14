@@ -66,9 +66,25 @@ int Key_up(WINDOW *wnd, struct dirent **namelist, int n,
 		(*chosen_row)--; //выбранная строка тоже на -1
 		Print_files(wnd, namelist, n, *upper_bound, *lower_bound, *chosen_row);
 	}
-	else { //иначе изменить только выбранную строку
+	else if (*chosen_row > 0) { //иначе изменить только выбранную строку
 		Change_chosen_row(wnd, namelist, *upper_bound, chosen_row, -1);
+	} //иначе chosen_row остается равна 0
+	return 0;
+}
+
+int Key_down(WINDOW *wnd, struct dirent **namelist, int n,
+	int *chosen_row, int *upper_bound, int *lower_bound) 
+{
+	//если выделена самая нижняя строка, но ниже есть еще файлы:
+	if (*chosen_row == *lower_bound - 1 && *chosen_row < n - 1) {
+		(*upper_bound)++;
+		(*lower_bound)++;
+		(*chosen_row)++;
+		Print_files(wnd, namelist, n, *upper_bound, *lower_bound, *chosen_row);
 	}
+	else if (*chosen_row < n - 1) { //'s'
+		Change_chosen_row(wnd, namelist, *upper_bound, chosen_row, 1);
+	} //иначе chosen_row остается равна n - 1
 	return 0;
 }
 
@@ -82,6 +98,7 @@ int main() {
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
 	int mid_of_terminal = size.ws_col / 2;
 	
+	//--------- СОЗДАНИЕ ОКОН  ---------//
 	WINDOW *wnd1, *wnd2;
 	WINDOW *subwnd1, *subwnd2;
 	//первое окно:
@@ -89,17 +106,34 @@ int main() {
 	box(wnd1, '|', '-'); //символы для границ окна
 	//под-окно, чтобы не затереть границы окна:
 	subwnd1 = derwin(wnd1, size.ws_row - 2, mid_of_terminal - 2, 1, 1); 
+	if (subwnd1 == NULL) {
+		endwin(); //конец работы с ncurses
+		printf("error: can't create subwnd1\n");
+		exit(1);
+	}
 	wrefresh(wnd1);
 	//второе окно:
 	wnd2 = newwin(size.ws_row, mid_of_terminal, 0, mid_of_terminal); 
+	if (wnd2 == NULL) {
+		endwin(); //конец работы с ncurses
+		printf("error: can't create wnd2\n");
+		exit(1);
+	}
 	box(wnd2, '|', '-');
-	subwnd2 = derwin(wnd2, size.ws_row - 2, mid_of_terminal, 1, mid_of_terminal + 1); 
+	subwnd2 = derwin(wnd2, size.ws_row - 2, mid_of_terminal - 2, 1, 1); 
+	if (subwnd2 == NULL) {
+		endwin(); //конец работы с ncurses
+		printf("error: can't create subwnd2\n");
+		exit(1);
+	}
 	wrefresh(wnd2);
-	//цвета:
+	
+	//--------- ЦВЕТ ---------//
 	start_color(); //начать работу с цветом терминала (ncurses)
 	init_pair(1, COLOR_BLACK, COLOR_YELLOW); //цвет для выделения выбранного файла
 	init_pair(2, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
-	//прочитать файлы:
+
+	//--------- ФАЙЛЫ ДЛЯ ЛЕВОГО ОКНА ---------//
 	struct dirent **namelist;
 	int n, chosen_row = 0; //всего файлов, выбранная строка (файл)
 	int upper_bound = 0, lower_bound = size.ws_row - 2; //границы выводимых файлов
@@ -110,12 +144,30 @@ int main() {
 		perror("scandir");
 	else 
 		Print_files(subwnd1, namelist, n, upper_bound, lower_bound, chosen_row);
+		
+	//--------- ФАЙЛЫ ДЛЯ ПРАВОГО ОКНА ---------//
+	struct dirent **namelist2;
+	int n2, chosen_row2 = 0; //всего файлов, выбранная строка (файл)
+	int upper_bound2 = 0, lower_bound2 = size.ws_row - 2; //границы выводимых файлов	
+	char* dir_name2 = (char*) malloc(sizeof(char) * 2); //путь к выбранной директории
+	strcpy(dir_name2, "."); //изначально выбранная директория = папка, откуда запускается программа
+	n2 = scandir(dir_name2, &namelist2, 0, alphasort); //получить массив имен файлов (отсортированный)
+	if (n < 0)
+		perror("scandir");
+	else 
+		Print_files(subwnd2, namelist2, n2, upper_bound2, lower_bound2, chosen_row2);
 	
+	int current_window = 1;
 	char ch;
 	wmove(subwnd1, 0, mid_of_terminal - 5); //переместиться за точку, чтобы не перекрывать
-	//надо отключить вывод символов
 	while ((ch = wgetch(subwnd1)) != 10) {
-		if (ch == 119 && chosen_row > 0) { //'w'
+		if (ch == 'a') { //клавиша влево - переключиться на 1-ое окно
+			current_window = 1;
+		}
+		else if (ch == 'd') { //клавиша вправо - переключиться на 2-ое окно
+			current_window = 2;
+		}
+		else if (ch == 'w') { //клавиша вверх - переключиться на файл выше
 			/*if (chosen_row == upper_bound && upper_bound > 0) {
 				upper_bound--;
 				lower_bound--;
@@ -125,11 +177,13 @@ int main() {
 			else {	
 				Change_chosen_row(subwnd1, namelist, upper_bound, &chosen_row, -1);
 			}*/
-			Key_up(subwnd1, namelist, n, &chosen_row, &upper_bound, &lower_bound);
-			//wprintw(subwnd1, " chosen_row=%d", chosen_row); 
-			//wrefresh(subwnd1);
+			if (current_window == 1)
+				Key_up(subwnd1, namelist, n, &chosen_row, &upper_bound, &lower_bound);
+			else
+				Key_up(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
 		}
 		else if (ch == 115) { //'s'
+			/*
 			//если выделена самая нижняя строка, но ниже есть еще файлы:
 			if (chosen_row == lower_bound - 1 && chosen_row < n - 1) {
 				upper_bound++;
@@ -141,7 +195,11 @@ int main() {
 				Change_chosen_row(subwnd1, namelist, upper_bound, &chosen_row, 1);
 			}
 			else
-				chosen_row = n - 1;
+				chosen_row = n - 1;*/
+			if (current_window == 1) 
+				Key_down(subwnd1, namelist, n, &chosen_row, &upper_bound, &lower_bound);
+			else
+				Key_down(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
 		}
 		else if (ch == 113) { //'q'
 			for (int i = 0; i < n; i++) //очистить память для массива файлов
@@ -190,6 +248,7 @@ int main() {
 	
 	//TODO: баг при открытии CUDA
 	//TODO: обработка ошибок
+	//TODO: мб надо отключить вывод символов
 	/*
 	for (int i = 0; i < n; i++) //очистить память для массива файлов
 		free(namelist[i]);
