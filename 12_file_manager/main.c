@@ -9,10 +9,7 @@
 
 int Min(int a, int b) 
 {
-	if (a < b)
-		return a;
-	else
-		return b;
+	return a < b ? a : b;
 }
 
 void Handling_SIGWINCH(int signo) 
@@ -24,7 +21,7 @@ void Handling_SIGWINCH(int signo)
 
 int Print_files(WINDOW *wnd, struct dirent **namelist, int n, 
 	int upper_bound, int lower_bound, int chosen_row) 
-{
+{ //вывести названия файлов и папок текущей директории
 	werase(wnd); //заполнить окно пробелами
 	for (int i = upper_bound; i < Min(n, lower_bound); i++) { 
 		wmove(wnd, i - upper_bound, 0);
@@ -43,7 +40,7 @@ int Print_files(WINDOW *wnd, struct dirent **namelist, int n,
 
 int Change_chosen_row(WINDOW *wnd, struct dirent **namelist,
 		      int upper_bound, int *chosen_row, int offset) 
-{
+{ //изменить выбранную строку на указанное смещение (offset)
 	wattron(wnd, COLOR_PAIR(2)); //убрать "подсвечивание" старой выбранной строки
 	wmove(wnd, *chosen_row - upper_bound, 0);
 	wprintw(wnd, "%s", namelist[*chosen_row]->d_name);
@@ -74,7 +71,7 @@ int Key_up(WINDOW *wnd, struct dirent **namelist, int n,
 
 int Key_down(WINDOW *wnd, struct dirent **namelist, int n,
 	int *chosen_row, int *upper_bound, int *lower_bound) 
-{
+{ //функция для нажатия клавиши вниз ('s')
 	//если выделена самая нижняя строка, но ниже есть еще файлы:
 	if (*chosen_row == *lower_bound - 1 && *chosen_row < n - 1) {
 		(*upper_bound)++;
@@ -91,9 +88,8 @@ int Key_down(WINDOW *wnd, struct dirent **namelist, int n,
 int Key_choose_file(WINDOW *wnd, struct dirent ***namelist, int *n,
 	char **dir_name, int mid_of_terminal,
 	int *chosen_row, int *upper_bound, int *lower_bound) 
-{
-	//временная строка для проверка нового пути:
-	char *new_dir_name;
+{ //функция для нажатия клавиши выбора файла ('e')
+	char *new_dir_name;	//временная строка для проверка нового пути
 	//ее размер = старый путь + '\' + новая папка + '\0'
 	int new_dir_len = strlen(*dir_name) + strlen((*namelist)[*chosen_row]->d_name) + 2;
 	if (new_dir_len <= 0) {
@@ -107,10 +103,9 @@ int Key_choose_file(WINDOW *wnd, struct dirent ***namelist, int *n,
 	strcat(new_dir_name, (*namelist)[*chosen_row]->d_name);
 	if (opendir(new_dir_name) == NULL) { //если указан файл, а не папка
 		free(new_dir_name);
-		wmove(wnd, 0, 10); 
+		wmove(wnd, 0, mid_of_terminal - 21); 
 		wprintw(wnd, "this isn't a folder");
 		wrefresh(wnd);
-		wmove(wnd, 0, mid_of_terminal - 5);
 		return 1;
 	}
 	free(new_dir_name); //временная строка больше не нужна
@@ -137,8 +132,9 @@ int Key_choose_file(WINDOW *wnd, struct dirent ***namelist, int *n,
 int main() {
 	initscr();
 	signal(SIGWINCH, Handling_SIGWINCH);
-	cbreak();
-	curs_set(FALSE); //курсор невидимый
+	cbreak(); //...
+	curs_set(FALSE); //курсор невидимый 
+	noecho(); //отключить вывод вводимых символов
 	
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
@@ -211,66 +207,57 @@ int main() {
 	
 	//--------- ОБРАБОТКА КЛАВИШ ---------//
 	int current_window = 1; //текущее окно левое (1) или правое (2)
-	char ch; //переменная для wgetch() 
-	wmove(subwnd1, 0, mid_of_terminal - 5); //переместиться за точку, чтобы не перекрывать
-	while ((ch = wgetch(subwnd1)) != 10) { 
-		if (ch == 'a') { //клавиша влево - переключиться на 1-ое окно
-			current_window = 1;
+	char ch = 0; //переменная для wgetch() 
+	while ((ch = wgetch(subwnd1)) != 'q') { 
+		switch (ch) {
+			case 'a': //выбрать левое (1) окно
+				current_window = 1;
+				break;
+			case 'd': //выбрать правое (2) окно
+				current_window = 2;
+				break;
+			case 'w': //выбрать файл выше
+				if (current_window == 1)
+					Key_up(subwnd1, namelist1, n1, &chosen_row1, &upper_bound1, &lower_bound1);
+				else
+					Key_up(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
+				break; 
+			case 's': //выбрать файл ниже
+				if (current_window == 1) 
+					Key_down(subwnd1, namelist1, n1, &chosen_row1, &upper_bound1, &lower_bound1);
+				else
+					Key_down(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
+				break;
+			case 'e': //перейти в выбранную папку
+				if (current_window == 1)
+					Key_choose_file(subwnd1, &namelist1, &n1, 
+						&dir_name1, mid_of_terminal,
+						&chosen_row1, &upper_bound1, &lower_bound1);
+				else
+					Key_choose_file(subwnd2, &namelist2, &n2, 
+						&dir_name2, mid_of_terminal,
+						&chosen_row2, &upper_bound2, &lower_bound2);
+				break;
+			default:
+				break;
 		}
-		else if (ch == 'd') { //клавиша вправо - переключиться на 2-ое окно
-			current_window = 2;
-		}
-		else if (ch == 'w') { //клавиша вверх - переключиться на файл выше
-			if (current_window == 1)
-				Key_up(subwnd1, namelist1, n1, &chosen_row1, &upper_bound1, &lower_bound1);
-			else
-				Key_up(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
-		}
-		else if (ch == 115) { //'s'
-			if (current_window == 1) 
-				Key_down(subwnd1, namelist1, n1, &chosen_row1, &upper_bound1, &lower_bound1);
-			else
-				Key_down(subwnd2, namelist2, n2, &chosen_row2, &upper_bound2, &lower_bound2);
-		}
-		else if (ch == 113) { //'q'
-			for (int i = 0; i < n1; i++) //очистить память для массива файлов
-				free(namelist1[i]);
-			free(namelist1);
-			free(dir_name1); //очистить строку с путем по папкам
-			delwin(subwnd1); //удалить структуры окон
-			delwin(wnd1);
-			delwin(wnd2);
-			endwin(); //конец работы с ncurses
-			exit(EXIT_SUCCESS);
-		}
-		else if (ch == 101) { //'e'
-			if (current_window == 1)
-				Key_choose_file(subwnd1, &namelist1, &n1, 
-					&dir_name1, mid_of_terminal,
-					&chosen_row1, &upper_bound1, &lower_bound1);
-			else
-				Key_choose_file(subwnd2, &namelist2, &n2, 
-					&dir_name2, mid_of_terminal,
-					&chosen_row2, &upper_bound2, &lower_bound2);
-		}
-		wmove(subwnd1, 0, mid_of_terminal - 5);
 	}
+	
+	//сюда программа попадает, если пользователь нажал 'q':
+	for (int i = 0; i < n1; i++) //очистить память для массива файлов
+		free(namelist1[i]);
+	for (int i = 0; i < n2; i++)
+		free(namelist2[i]);
+	free(namelist1); free(namelist2);
+	free(dir_name1), free(dir_name2);//очистить строку с путем по папкам
+	delwin(subwnd1), delwin(subwnd2); //удалить структуры окон
+	delwin(wnd1), delwin(wnd2);
+	endwin(); //конец работы с ncurses
+	exit(EXIT_SUCCESS);
 	
 	//TODO: баг при открытии CUDA
 	//TODO: обработка ошибок
 	//TODO: мб надо отключить вывод символов
 	//TODO: ИЗМЕНИТЬ while ((ch = wgetch(subwnd1)) != 10)
 	//TODO: массив из окон и других переменных?
-	/*
-	for (int i = 0; i < n; i++) //очистить память для массива файлов
-		free(namelist[i]);
-	free(namelist);
-	free(dir_name);
-	delwin(subwnd1); //удалить структуру, но текст останется
-	delwin(wnd1);
-	delwin(wnd2);
-	getch();
-	endwin(); //конец работы с ncurses
-	*/
-	return -1;
 }
