@@ -1,0 +1,69 @@
+store 1 have 996 goods
+store 2 have 985 goods
+store 3 have 953 goods
+store 4 have 1010 goods
+store 5 have 999 goods
+I'm buyer 1, my need in goods = 5349
+I'm buyer 3, my need in goods = 4555
+I'm buyer 2, my need in goods = 4689
+I'm loader, add goods for the store 5, now count of goods there = 1499
+I'm loader, add goods for the store 3, now count of goods there = 1453
+I'm buyer 1, visite the store 3, buy 1453 goods, my need now = 3896
+I'm buyer 3, visite the store 2, buy  985 goods, my need now = 3570
+I'm buyer 2, visite the store 5, buy 1499 goods, my need now = 3190
+I'm loader, add goods for the store 2, now count of goods there = 500
+I'm loader, add goods for the store 5, now count of goods there = 500
+I'm buyer 1, visite the store 3, buy    0 goods, my need now = 3896
+I'm buyer 3, visite the store 2, buy  500 goods, my need now = 3070
+I'm buyer 2, visite the store 3, buy    0 goods, my need now = 3190
+I'm loader, add goods for the store 3, now count of goods there = 500
+I'm loader, add goods for the store 3, now count of goods there = 1000
+I'm buyer 1, visite the store 4, buy 1010 goods, my need now = 2886
+I'm buyer 2, visite the store 1, buy  996 goods, my need now = 2194
+I'm buyer 3, visite the store 2, buy    0 goods, my need now = 3070
+I'm loader, add goods for the store 2, now count of goods there = 500
+I'm loader, add goods for the store 3, now count of goods there = 1500
+I'm buyer 1, visite the store 5, buy  500 goods, my need now = 2386
+I'm buyer 3, visite the store 1, buy    0 goods, my need now = 3070
+I'm buyer 2, visite the store 2, buy  500 goods, my need now = 1694
+I'm loader, add goods for the store 5, now count of goods there = 500
+I'm loader, add goods for the store 3, now count of goods there = 2000
+I'm buyer 1, visite the store 3, buy 2000 goods, my need now =  386
+I'm buyer 3, visite the store 1, buy    0 goods, my need now = 3070
+I'm buyer 2, visite the store 4, buy    0 goods, my need now = 1694
+I'm loader, add goods for the store 1, now count of goods there = 500
+I'm loader, add goods for the store 4, now count of goods there = 500
+I'm buyer 1, visite the store 5, buy  500 goods, my need now = -114
+I'm buyer 1 and I satisfied my needs
+I'm buyer 2, visite the store 3, buy    0 goods, my need now = 1694
+I'm buyer 3, visite the store 3, buy    0 goods, my need now = 3070
+I'm loader, add goods for the store 2, now count of goods there = 500
+I'm loader, add goods for the store 4, now count of goods there = 1000
+I'm buyer 3, visite the store 5, buy    0 goods, my need now = 3070
+I'm buyer 2, visite the store 1, buy  500 goods, my need now = 1194
+I'm loader, add goods for the store 1, now count of goods there = 500
+I'm loader, add goods for the store 3, now count of goods there = 500
+I'm buyer 3, visite the store 4, buy 1000 goods, my need now = 2070
+I'm buyer 2, visite the store 3, buy  500 goods, my need now =  694
+I'm loader, add goods for the store 1, now count of goods there = 1000
+I'm loader, add goods for the store 1, now count of goods there = 1500
+I'm buyer 3, visite the store 4, buy    0 goods, my need now = 2070
+I'm buyer 2, visite the store 5, buy    0 goods, my need now =  694
+I'm loader, add goods for the store 5, now count of goods there = 500
+I'm loader, add goods for the store 2, now count of goods there = 1000
+I'm buyer 3, visite the store 5, buy  500 goods, my need now = 1570
+I'm buyer 2, visite the store 2, buy 1000 goods, my need now = -306
+I'm buyer 2 and I satisfied my needs
+I'm loader, add goods for the store 5, now count of goods there = 500
+I'm loader, add goods for the store 3, now count of goods there = 500
+I'm buyer 3, visite the store 5, buy  500 goods, my need now = 1070
+I'm loader, add goods for the store 4, now count of goods there = 500
+I'm loader, add goods for the store 5, now count of goods there = 500
+I'm buyer 3, visite the store 2, buy    0 goods, my need now = 1070
+I'm loader, add goods for the store 4, now count of goods there = 1000
+I'm loader, add goods for the store 2, now count of goods there = 500
+I'm buyer 3, visite the store 4, buy 1000 goods, my need now =   70
+I'm loader, add goods for the store 2, now count of goods there = 1000
+I'm loader, add goods for the store 5, now count of goods there = 1000
+I'm buyer 3, visite the store 2, buy 1000 goods, my need now = -930
+I'm buyer 3 and I satisfied my needs
