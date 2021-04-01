@@ -32,5 +32,7 @@ int main(int argc, char *argv[]) {
 	}
 		
 	printf("Main thread: str (%p) = %s\n", str, str);
+	char *new_str = strerror(7);
+	printf("Main thread: old str = %s\n\t new str = %s\n", str, new_str);
 	exit(EXIT_SUCCESS);
 }
