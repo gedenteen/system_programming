@@ -1,4 +1,4 @@
-all: test0 test1 test2 test3 test4 test5 test6 test7 test8 \
+all: test0 test1 test2 test3 test4 test5 test6 test7 test8 test9\
  cursed0 cursed1 cursed2 cursed3 cursed4 cursed5
 
 test0:
@@ -30,6 +30,9 @@ test7:
 	
 test8:
 	gcc -Wall -g test8.c -o test8 -lpthread
+	
+test9:
+	gcc -Wall -g test9.c -o test9.exe
 
 cursed0:
 	gcc cursed0.c -o cursed0.exe -lncurses
