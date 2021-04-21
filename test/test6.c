@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <uistd.h>
+#include <unistd.h>
 
 int main() {
 	printf("howdy");
