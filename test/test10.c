@@ -7,7 +7,15 @@
 #define STRING_LEN 256
 
 int highlight_words(char *string, int *words_cnt, char **words_arr[]) 
-{ //функция для разделения строки, символ-разделить == ' '
+{ //функция для разделения строки, символ-разделить = ' '
+	if (string[1] == '\n') { //если строка состоит из одного слова без пробелов
+		*words_cnt = 1;
+		*words_arr = realloc(*words_arr, sizeof(char*));
+		(*words_arr)[0] = malloc(sizeof(char) * 2);
+		(*words_arr)[0][0] = string[0];
+		(*words_arr)[0][1] = '\0';
+		return 0;
+	}
 	int i_beg = 0, i_end = -1; //индексы в строке, которые отвечают за начало и конец слова
 	for (int i = 1; i < STRING_LEN; i++) { //цикл по длине строки
 		if ((string[i] == ' ' || string[i] == '\n') && string[i - 1] != ' ') {
@@ -20,11 +28,13 @@ int highlight_words(char *string, int *words_cnt, char **words_arr[])
 			for (int j = 0; j <= i_end - i_beg; j++) { //скопировать слово по 1-му символу 
 				(*words_arr)[*words_cnt - 1][j] = string[i_beg + j];
 			}
+			(*words_arr)[*words_cnt - 1][i_end - i_beg + 1] = '\0'; //добавить символ конца строки
 			//printf("words_arr[words_cnt - 1] = %s.\n\n", (*words_arr)[*words_cnt - 1]); //отладка
 			i_beg = i + 1; //задать начало для следующего слова
 		}
-		if (string[i] == '\n') //если конец строки, то все слова найдены
-			return 0;
+		if (string[i] == '\n') { //если конец строки, то все слова найдены
+			return 0;	
+		}
 	}
 	fprintf(stderr, "error in highlight_words(), maybe not found '\\n' \n");
 	return -1;
