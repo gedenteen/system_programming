@@ -9,3 +9,4 @@ test7: просмотр файлов
 cursed*: работа с ncurses
 test8: вызов strerror() из двух разных потоков. Листинг 31-2 из книги "The Linux Programming interface" Michael Kerrisk. 
 test9: программа из мануала по pipe
+test10: функция, которая разделяет строку, символ-разделитель = ' '

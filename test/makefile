@@ -1,7 +1,7 @@
 STANDARD_FLAGS = -Wall -g -c -o
 
 all: test0.exe test1.exe test2.exe test3.exe test4.exe \
-test5.exe test6.exe test7.exe test8.exe test9.exe \
+test5.exe test6.exe test7.exe test8.exe test9.exe test10.exe\
 cursed0.exe cursed1.exe cursed2.exe \
 cursed3.exe cursed4.exe cursed5.exe
 
@@ -56,6 +56,11 @@ test8.o: test8.c
 test9.exe: test9.o
 	gcc -o $@ $<
 test9.o: test9.c
+	gcc $(STANDARD_FLAGS) $@ $<
+	
+test10.exe: test10.o
+	gcc -o $@ $<
+test10.o: test10.c
 	gcc $(STANDARD_FLAGS) $@ $<
 
 #TODO: доделать ниже
