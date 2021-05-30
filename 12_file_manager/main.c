@@ -140,6 +140,11 @@ int main() {
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
 	int mid_of_terminal = size.ws_col / 2;
 	
+	//--------- ЦВЕТ ---------//
+	start_color(); //начать работу с цветом терминала (ncurses)
+	init_pair(1, COLOR_BLACK, COLOR_YELLOW); //цвет для выделения выбранного файла
+	init_pair(2, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
+	
 	//--------- СОЗДАНИЕ ОКОН  ---------//
 	WINDOW *wnd1, *wnd2;
 	WINDOW *subwnd1, *subwnd2;
@@ -169,11 +174,6 @@ int main() {
 		exit(1);
 	}
 	wrefresh(wnd2);
-	
-	//--------- ЦВЕТ ---------//
-	start_color(); //начать работу с цветом терминала (ncurses)
-	init_pair(1, COLOR_BLACK, COLOR_YELLOW); //цвет для выделения выбранного файла
-	init_pair(2, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
 
 	//--------- ФАЙЛЫ ДЛЯ ЛЕВОГО ОКНА ---------//
 	struct dirent **namelist1;
