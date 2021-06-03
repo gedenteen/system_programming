@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	/// создать очередь или подключиться к ней (через ключ):
-	int mesQueueId = msgget(mesQueueKey, IPC_CREAT | 0660);
+	int mesQueueId = msgget(mesQueueKey, IPC_CREAT | 0660); //0660 - для уникальности доступа?
 	if (mesQueueId == -1) {
 		perror("error in msgget()"); 
 		exit(EXIT_FAILURE);
