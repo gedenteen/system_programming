@@ -1,92 +1,86 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <mqueue.h>
-
-#define SERVER_QUEUE_NAME   "/sp-example-server"
-#define QUEUE_PERMISSIONS 0660
-#define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
-#define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
-
-struct message_t {
-	char mqClientName[30];
-	char command[10];
-	char text[MAX_MSG_SIZE];
-};
+#include "header.h"
 
 int main (int argc, char **argv)
 {
-    mqd_t qd_server, qd_client;   // queue descriptors
-    long token_number = 1; // next token to be given to client
+	/// mq = message queue (очередь сообщений)
+    mqd_t mqServer, mqClient; //дескрипторы очередей сообщений
+    long tokenNumber = 1; //токен для клиента
+    printf("server init\n");
 
-    printf ("Server: Hello, World!\n");
-
+	/// атрибуты очереди сообщений:
     struct mq_attr attr;
-
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
     attr.mq_msgsize = MAX_MSG_SIZE;
     attr.mq_curmsgs = 0;
 
-    if ((qd_server = mq_open (SERVER_QUEUE_NAME, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
-        perror ("Server: mq_open (server)");
-        exit (1);
+	/// создание сервера для очереди сообщений, который будет принимать сообщения от клиентов:
+    if ((mqServer = mq_open(SERVER_QUEUE_NAME, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
+        perror ("error in mq_open() for server");
+        exit(EXIT_FAILURE);
     }
-    char in_buffer [MSG_BUFFER_SIZE];
-    char out_buffer [MSG_BUFFER_SIZE];
+    
+    /// буферы для приема и отправки сообщений:
+    char inBuffer[MSG_BUFFER_SIZE];
+    char outBuffer[MSG_BUFFER_SIZE];
 
+	/// переменные для хранения имен клиентов:
 	char** mqClientsTable = malloc(sizeof(char*));
 	int countClients = 0;
 	
+	/// обработка сообщений:
     while (1) {
-        // get the oldest message with highest priority
-        if (mq_receive (qd_server, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
-            perror ("Server: mq_receive");
-            exit (1);
+        /// получить сообщение (с самым высоким приоритетом, самое старое):
+        if (mq_receive(mqServer, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
+            perror ("error in mq_receive()");
+       		exit(EXIT_FAILURE);
         }
+		printf("message received = %s\n", inBuffer);
 
-		long bytesForCopy = strcspn(in_buffer, ";");
-		char* substr1 = malloc (sizeof(char) * bytesForCopy);
-		strncpy(substr1, in_buffer, bytesForCopy); 
-		
-        printf ("Server: message received = %s\n", in_buffer);
+		/// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
+		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
+		char* substr1 = malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
+		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
 		printf("substr1 = %s\n", substr1);
 		
+		/// если подстрока 1 == "join", то клиент хочет подключиться к серверу
 		if (strcmp("join", substr1) == 0) {
-			countClients++;
-			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients);
-			mqClientsTable[countClients - 1] = malloc(
-				strlen(in_buffer - bytesForCopy) * sizeof(char));
-			strcpy(mqClientsTable[countClients - 1], in_buffer + bytesForCopy + 1);
-			printf("new client %s joined\n", mqClientsTable[countClients - 1]);
+			countClients++; //увеличить кол-во клиентов, о которых знает сервер
+			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
+			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
+				strlen(inBuffer - bytesForCopy) * sizeof(char));
+			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
+			printf("new client %s joined\n", mqClientsTable[countClients - 1]); 
+			continue; //начать новую итерацию цикла
+		}
+		
+		/// если подстрока 1 == "exit", то клиент закрывает свою программу, надо удалить запись о нем:
+		if (strcmp("exit", substr1) == 0) {
+			// TODO
 			continue;
 		}
 		
-		char message[MAX_MSG_SIZE];
-		strcpy(message, in_buffer + bytesForCopy + 1);
+		/// если программа дошла до сюда, значит, пользователь отправил сообщение в чат
+		/// подстрока 1 - это имя клиента, подстрока 2 - его сообщение:
+		char substr2[MAX_MSG_SIZE];
+		strcpy(substr2, inBuffer + bytesForCopy + 1);
+		printf("substr2 = %s\n", substr2);
 
-		printf("message = %s\n", message);
-
-        // send reply message to client
-
-        if ((qd_client = mq_open (substr1, O_WRONLY)) == 1) {
+        /// отправить это сообщение всем клиентам, чтобы они обновили окно с чатом:
+        //TODO отправка всем клиентам
+        if ((mqClient = mq_open (substr1, O_WRONLY)) == 1) {
             perror ("Server: Not able to open client queue");
             continue;
         }
 
-        sprintf (out_buffer, "%ld", token_number);
+        sprintf (outBuffer, "%ld", tokenNumber);
 
-        if (mq_send (qd_client, out_buffer, strlen (out_buffer) + 1, 0) == -1) {
+        if (mq_send (mqClient, outBuffer, strlen (outBuffer) + 1, 0) == -1) {
             perror ("Server: Not able to send message to client");
             continue;
         }
 
         printf ("Server: response sent to client.\n");
-        token_number++;
+        tokenNumber++;
     }
 }
