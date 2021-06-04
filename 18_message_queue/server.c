@@ -40,6 +40,9 @@ int main (int argc, char **argv)
     char in_buffer [MSG_BUFFER_SIZE];
     char out_buffer [MSG_BUFFER_SIZE];
 
+	char** mqClientsTable = malloc(sizeof(char*));
+	int countClients = 0;
+	
     while (1) {
         // get the oldest message with highest priority
         if (mq_receive (qd_server, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
@@ -48,19 +51,30 @@ int main (int argc, char **argv)
         }
 
 		long bytesForCopy = strcspn(in_buffer, ";");
-		char mqClientName[bytesForCopy + 1];
-		strncpy(mqClientName, in_buffer, bytesForCopy); 
+		char* substr1 = malloc (sizeof(char) * bytesForCopy);
+		strncpy(substr1, in_buffer, bytesForCopy); 
+		
+        printf ("Server: message received = %s\n", in_buffer);
+		printf("substr1 = %s\n", substr1);
+		
+		if (strcmp("join", substr1) == 0) {
+			countClients++;
+			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients);
+			mqClientsTable[countClients - 1] = malloc(
+				strlen(in_buffer - bytesForCopy) * sizeof(char));
+			strcpy(mqClientsTable[countClients - 1], in_buffer + bytesForCopy + 1);
+			printf("new client %s joined\n", mqClientsTable[countClients - 1]);
+			continue;
+		}
 		
 		char message[MAX_MSG_SIZE];
 		strcpy(message, in_buffer + bytesForCopy + 1);
 
-        printf ("Server: message received = %s\n", in_buffer);
-		printf("mqClientName = %s\n", mqClientName);
 		printf("message = %s\n", message);
 
         // send reply message to client
 
-        if ((qd_client = mq_open (mqClientName, O_WRONLY)) == 1) {
+        if ((qd_client = mq_open (substr1, O_WRONLY)) == 1) {
             perror ("Server: Not able to open client queue");
             continue;
         }

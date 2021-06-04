@@ -1,10 +1,3 @@
-//код взят из https://www.softprayog.in/programming/interprocess-communication-using-posix-message-queues-in-linux
-/*
- * client.c: Client program
- *           to demonstrate interprocess communication
- *           with POSIX message queues
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +44,15 @@ int main (int argc, char **argv)
         perror ("Client: mq_open (server)");
         exit (1);
     }
+
+
+	char joinMessage[6 + strlen(client_queue_name)];
+		strcpy(joinMessage, "join;"); 
+    	strcat(joinMessage, client_queue_name); //добавить строку....
+        if (mq_send(qd_server, joinMessage, strlen(joinMessage) + 1, 1) == -1) {
+            perror ("Client: Not able to send message to server");
+            exit(EXIT_FAILURE);
+        }
 
 
     printf ("Ask for a token (Press <ENTER>): ");
