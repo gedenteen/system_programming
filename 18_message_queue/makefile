@@ -1,7 +1,7 @@
 all: client.exe server.exe
 	
 client.exe: client.o
-	gcc -o $@ $^ -lrt
+	gcc -o $@ $^ -lrt -lncurses
 client.o: client.c
 	gcc -g -c -o $@ $<
 
