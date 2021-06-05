@@ -73,9 +73,9 @@ int main (int argc, char **argv)
             continue;
         }
 
-        sprintf (outBuffer, "%ld", tokenNumber);
+        //sprintf (outBuffer, "%ld", tokenNumber);
 
-        if (mq_send (mqClient, outBuffer, strlen (outBuffer) + 1, 0) == -1) {
+        if (mq_send (mqClient, inBuffer, strlen(inBuffer) + 1, 5) == -1) {
             perror ("Server: Not able to send message to client");
             continue;
         }

@@ -29,6 +29,7 @@ int CreateWindow(WINDOW **wnd, WINDOW **subwnd, int height, int width, int x, in
 	wattron(*wnd, COLOR_PAIR(2));
 	wprintw(*wnd, text);
 	wattron(*wnd, COLOR_PAIR(1));
+	wmove(*wnd, 1, 1);
 	
 	*subwnd = derwin(*wnd, height - 2, width - 2, 1, 1); //под-окно, чтобы не стирать границы окна
 	if (*subwnd == NULL)
@@ -41,9 +42,9 @@ int main (int argc, char **argv)
 {
 	initscr();
 	signal(SIGWINCH, Handling_SIGWINCH);
-	cbreak(); //...
-	curs_set(TRUE); //курсор видимый 
-	noecho(); //отключить вывод вводимых символов
+	//cbreak(); //...
+	//curs_set(TRUE); //курсор видимый 
+	//noecho(); //отключить вывод вводимых символов
 	
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
@@ -51,8 +52,9 @@ int main (int argc, char **argv)
 	
 	//--------- ЦВЕТ ---------//
 	start_color(); //начать работу с цветом терминала (ncurses)
-	init_pair(1, COLOR_WHITE, COLOR_BLACK); //цвет для остальных файлов
-	init_pair(2, COLOR_YELLOW, COLOR_BLACK); //цвет для выделения выбранного файла
+	init_pair(1, COLOR_WHITE, COLOR_BLACK); //цвет для
+	init_pair(2, COLOR_YELLOW, COLOR_BLACK); //цвет для
+	init_pair(3, COLOR_GREEN, COLOR_BLACK);
 	
 	//--------- СОЗДАНИЕ ОКОН  ---------//
 	WINDOW *wndChat, *wndUsers, *wndInput;
@@ -86,8 +88,8 @@ int main (int argc, char **argv)
 		//exit(EXIT_FAILURE);
 	}	
 
+	wmove(subwndInput, 0, 0);
 	//==========================================================//
-
 	/// mq = message queue (очередь сообщений)
     char clientName[64];
     sprintf (clientName, "/sp-example-client-%d", getpid());
@@ -121,21 +123,22 @@ int main (int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    printf ("Ask for a token (Press <ENTER>): ");
-    char temp_buf[10];
+    //printf ("Ask for a token (Press <ENTER>): ");
+    //char temp_buf[10];
 
-    while (fgets(temp_buf, 2, stdin)) {
+    while (1) {//(fgets(temp_buf, 2, stdin)) {
 		/// считать сообщение, которое для чата:
 		char message[MAX_MSG_SIZE - strlen(clientName)];
-		fgets(message, MAX_MSG_SIZE - strlen(clientName), stdin);
-		printf("message = %s\n", message);
+		wgetnstr(subwndInput, message, MAX_MSG_SIZE - strlen(clientName));//fgets(message, MAX_MSG_SIZE - strlen(clientName), stdin);
+		//printf("message = %s\n", message);
+		
 		
 		/// создать сообщение (буфер), которое будет передаваться:
     	char chatMessage[MAX_MSG_SIZE];
     	strcpy(chatMessage, clientName); //скопировать строку
     	strcat(chatMessage, ";"); //добавить строку в конец существующей
     	strcat(chatMessage, message); //добавить строку в конец существующей
-    	printf("chatMessage = %s\n", chatMessage);
+    	//printf("chatMessage = %s\n", chatMessage);
     	
     	/// отправить это сообщение (приоритет 5):
         if (mq_send(mqServer, chatMessage, strlen(chatMessage) + 1, 5) == -1) {
@@ -149,8 +152,37 @@ int main (int argc, char **argv)
             perror ("Client: mq_receive");
             exit (1);
         }
+        
+        /// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
+		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
+		char* substr1 = malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
+		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
+		printf("substr1 = %s\n", substr1);
        
         ///
+		if (strcmp("users", substr1) == 0) {
+			/*countClients++; //увеличить кол-во клиентов, о которых знает сервер
+			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
+			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
+				strlen(inBuffer - bytesForCopy) * sizeof(char));
+			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
+			printf("new client %s joined\n", mqClientsTable[countClients - 1]); */
+			continue; //начать новую итерацию цикла
+		}       
+       
+		/// ........
+       	char substr2[MAX_MSG_SIZE];
+		strcpy(substr2, inBuffer + bytesForCopy + 1);
+		//printf("substr2 = %s\n", substr2);
+       	
+       	wmove(subwndChat, 0, 0);
+		wattron(subwndChat, COLOR_PAIR(3));
+		wprintw(subwndChat, substr1);
+		wmove(subwndChat, 1, 0);
+		wattron(subwndChat, COLOR_PAIR(1));
+		wprintw(subwndChat, substr2);
+		wrefresh(subwndChat);
+       
        
         // display token received from server
         //printf ("Client: Token received from server: %s\n\n", inBuffer);
