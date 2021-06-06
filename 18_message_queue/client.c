@@ -272,7 +272,7 @@ int main (int argc, char **argv)
 		wrefresh(subwndInput);
     }
 
-	///TODO 
+	/*
     if (mq_close (mqClient) == -1) {
         perror ("Client: mq_close");
         exit (1);
@@ -282,12 +282,10 @@ int main (int argc, char **argv)
         perror ("Client: mq_unlink");
         exit (1);
     }
-    printf ("Client: bye\n");
 
-
-	//удалить структуры окон
 	delwin(subwndChat), delwin(subwndUsers), delwin(subwndUsers);  
 	delwin(wndChat), delwin(wndUsers), delwin(wndInput); 
 	endwin(); //конец работы с ncurses
+	*/
     exit(EXIT_SUCCESS);
 }
