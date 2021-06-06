@@ -2,20 +2,19 @@
 
 int main (int argc, char **argv)
 {
-	/// mq = message queue (очередь сообщений)
+	/// создание очереди сообщений (mq = message queue):
     mqd_t mqServer, mqClient; //дескрипторы очередей сообщений
-    long tokenNumber = 1; //токен для клиента
     printf("server init\n");
 
 	/// атрибуты очереди сообщений:
-    struct mq_attr attr;
-    attr.mq_flags = 0;
-    attr.mq_maxmsg = MAX_MESSAGES;
-    attr.mq_msgsize = MAX_MSG_SIZE;
-    attr.mq_curmsgs = 0;
+    struct mq_attr mqAttr;
+    mqAttr.mq_flags = 0;
+    mqAttr.mq_maxmsg = MAX_MESSAGES;
+    mqAttr.mq_msgsize = MAX_MSG_SIZE;
+    mqAttr.mq_curmsgs = 0;
 
 	/// создание сервера для очереди сообщений, который будет принимать сообщения от клиентов:
-    if ((mqServer = mq_open(SERVER_QUEUE_NAME, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
+    if ((mqServer = mq_open(SERVER_QUEUE_NAME, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &mqAttr)) == -1) {
         perror ("error in mq_open() for server");
         exit(EXIT_FAILURE);
     }
@@ -52,7 +51,7 @@ int main (int argc, char **argv)
 			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
 			printf("new client %s joined\n", mqClientsTable[countClients - 1]); 
 			
-			/// отправка сообщения "users":
+			/// отправка сообщения "users" всем клиентам:
 			strcpy(outBuffer, "users;");
 			for (int i = 0; i < countClients; i++) {
 				strcat(outBuffer, mqClientsTable[i]);
@@ -62,13 +61,13 @@ int main (int argc, char **argv)
 			for (int i = 0; i < countClients; i++) {
 		    	printf("prepare to send message \"users\" for client %s\n", mqClientsTable[i]);
 				if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
-				    perror("Server: Not able to open client queue");
-				    continue;
+				    perror("error in mq_open(), \"users\" message");
+				    exit(EXIT_FAILURE);
 				}
 
 				if (mq_send (mqClient, outBuffer, strlen(outBuffer) + 1, 5) == -1) {
-				    perror("Server: Not able to send message to client");
-				    continue;
+				    perror("error in mq_send(), \"users\" message");
+				    exit(EXIT_FAILURE);
 				}
 		    }
 			
@@ -91,17 +90,14 @@ int main (int argc, char **argv)
         for (int i = 0; i < countClients; i++) {
         	printf("prepare to send message for client %s\n", mqClientsTable[i]);
 		    if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
-		        perror("Server: Not able to open client queue");
-		        continue;
+		        perror("error in mq_send(), chat message");
+				exit(EXIT_FAILURE);
 		    }
 
 		    if (mq_send (mqClient, inBuffer, strlen(inBuffer) + 1, 5) == -1) {
-		        perror("Server: Not able to send message to client");
-		        continue;
+		        perror("error in mq_send(), chat message");
+				exit(EXIT_FAILURE);
 		    }
         }
-
-        printf ("Server: response sent to client.\n");
-        tokenNumber++;
     }
 }
