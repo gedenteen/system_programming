@@ -8,7 +8,7 @@
 
 //TODO посмотреть какие библиотеки для чего нужны
 
-#define RIGHT_WND_WIDTH 25
+#define RIGHT_WND_WIDTH 20
 #define BOTTOM_WND_HEIGHT 5
 
 void Handling_SIGWINCH(int signo) 
@@ -44,6 +44,7 @@ int CreateWindow(WINDOW **wnd, WINDOW **subwnd, int height, int width, int x, in
 struct ParamsForThread
 { //структура, для передачи параметоров в функцию ниже
 	mqd_t mqClient;
+	char *clientName;
 	WINDOW *subwndChat;
 	WINDOW *subwndInput;
 	WINDOW *subwndUsers;
@@ -54,6 +55,7 @@ void *FuncForThread(void *param)
 	/// "извлечение" переменных:
 	struct ParamsForThread *pft = (struct ParamsForThread*) param; 
 	mqd_t mqClient = pft->mqClient; //дескриптор очереди сообщений
+	char *clientName = pft->clientName;
 	WINDOW *subwndChat = pft->subwndChat;
 	WINDOW *subwndInput = pft->subwndInput;
 	WINDOW *subwndUsers = pft->subwndUsers;
@@ -88,7 +90,13 @@ void *FuncForThread(void *param)
 				strncpy(username, inBuffer + lb, rb); //скопировать имя пользователя
 				//printf("username = %s\n", username);
 				wmove(subwndUsers, cntUsers++, 0);
-				wprintw(subwndUsers, username);
+				if (strncmp(username, clientName, rb) == 0) { //если пишется имя текущего пользователя  	
+					wattron(subwndUsers, COLOR_PAIR(3)); //тогда выделить это имя зеленым цветом
+					wprintw(subwndUsers, username);
+					wattron(subwndUsers, COLOR_PAIR(1));
+				}
+				else
+					wprintw(subwndUsers, username);
 				lb += rb + 1; //левая граница смещается вправо на длину имени и +1 из-за ';'
 			}
 			
@@ -182,8 +190,9 @@ int main (int argc, char **argv)
 	//=========================================================================//
 	
 	/// создание очереди сообщений (mq = message queue):
-    char clientName[64];
-    sprintf(clientName, "/sp-example-client-%d", getpid());
+    char* clientName = malloc(sizeof(char) * 64);
+    sprintf(clientName, "/sp-client-%d", getpid()); //если не написать "sp" в начале, 
+	                                                //то происходят баги 
     mqd_t mqServer, mqClient; //дескрипторы очередей сообщений
 
 	/// атрибуты очереди сообщений:
@@ -218,13 +227,14 @@ int main (int argc, char **argv)
 	// создание потока, в котором будут приниматься и обрабатываться сообщения //
 	//=========================================================================//
 
-	//получить стандартные значения атрибутов для потоков:
+	/// получить стандартные значения атрибутов для потоков:
 	pthread_attr_t threadAttr;
 	pthread_attr_init(&threadAttr);
 	
-	/// параметры для потока:
+	/// переменные для потока:
 	struct ParamsForThread pft;
 	pft.mqClient = mqClient;
+	pft.clientName = clientName;
 	pft.subwndChat = subwndChat;
 	pft.subwndInput = subwndInput;
 	pft.subwndUsers = subwndUsers;
