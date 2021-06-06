@@ -8,7 +8,7 @@
 
 //TODO посмотреть какие библиотеки для чего нужны
 
-#define RIGHT_WND_WIDTH 23
+#define RIGHT_WND_WIDTH 25
 #define BOTTOM_WND_HEIGHT 5
 
 void Handling_SIGWINCH(int signo) 
@@ -44,6 +44,7 @@ struct ParamsForThread
 	mqd_t mqClient;
 	WINDOW *subwndChat;
 	WINDOW *subwndInput;
+	WINDOW *subwndUsers;
 };
 
 void *FuncForThread(void *param) 
@@ -53,6 +54,7 @@ void *FuncForThread(void *param)
 	mqd_t mqClient = pft->mqClient;
 	WINDOW *subwndChat = pft->subwndChat;
 	WINDOW *subwndInput = pft->subwndInput;
+	WINDOW *subwndUsers = pft->subwndUsers;
 
 	int rowsInChat = 0;
 	while (1) {
@@ -65,19 +67,35 @@ void *FuncForThread(void *param)
 		
 		/// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
 		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
-		char substr1[MAX_MSG_SIZE];//malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
+		char substr1[bytesForCopy + 1];//создать переменную для подстроки 1
 		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
 		//printf("substr1 = %s\n", substr1);
 	   
-		///
+		/// обработка сообщения "users" - нужно вывести имена (mqd_t mqClient) всех пользователей:
 		if (strcmp("users", substr1) == 0) {
-			/*countClients++; //увеличить кол-во клиентов, о которых знает сервер
-			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
-			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
-				strlen(inBuffer - bytesForCopy) * sizeof(char));
-			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
-			printf("new client %s joined\n", mqClientsTable[countClients - 1]); */
-			continue; //начать новую итерацию цикла
+			werase(subwndUsers);
+			int cntUsers = 0;
+			int lb = bytesForCopy + 1; //левая граница в inBuffer, от которой будет идти поиск следующей ';'
+			int rb = -1; //правая граница в inBuffer, которая указывает на новый ';'
+			while(1) {
+				rb = strcspn(inBuffer + lb, ";"); //узнать номер символа ';'
+				//printf("inBuffer + lb = %s\n", inBuffer + lb);
+				//printf("rb = %d\n", rb);
+				if (!(rb > 0))
+					break;
+				char username[rb + 1]; 
+				strncpy(username, inBuffer + lb, rb); //скопировать имя пользователя
+				//printf("username = %s\n", username);
+				wmove(subwndUsers, cntUsers++, 0);
+				wprintw(subwndUsers, username);
+				lb += rb + 1; //левая граница смещается вправо на длину имени и +1 из-за ';'
+				rb = -1; //удалить?
+			}
+			
+			wmove(subwndInput, 0, 0);
+			wrefresh(subwndUsers); //обновить окно с именами пользователей
+			wrefresh(subwndInput); //чтобы показывался курсор
+			continue; //начать новую итерацию цикла while(1)
 		}       
 	   
 		/// ........
@@ -94,6 +112,8 @@ void *FuncForThread(void *param)
 		wmove(subwndChat, rowsInChat++, 0);
 		wprintw(subwndChat, substr2);
 		wrefresh(subwndChat);
+		//TODO проверка на то, выходит ли rowsInChat за границы окна
+		//если выходит, то стереть все символы и написать сообщение снова
 		
 		wmove(subwndInput, 0, 0);
 		wrefresh(subwndInput);
@@ -104,8 +124,8 @@ void *FuncForThread(void *param)
 
 int main (int argc, char **argv)
 {
-	initscr();
-	signal(SIGWINCH, Handling_SIGWINCH);
+	initscr(); //начало работы с ncurses
+	signal(SIGWINCH, Handling_SIGWINCH); 
 	//cbreak(); //...
 	//curs_set(TRUE); //курсор видимый 
 	//noecho(); //отключить вывод вводимых символов
@@ -127,29 +147,29 @@ int main (int argc, char **argv)
 	//первое окно:
 	int status = CreateWindow(&wndChat, &subwndChat, 
 		size.ws_row - BOTTOM_WND_HEIGHT, size.ws_col - RIGHT_WND_WIDTH, //размер окна
-		0, 0,
-		" Chat "); //координаты левого верхнего угла
+		0, 0, //координаты левого верхнего угла
+		" Chat ");
 	if (status) {
-		printf("error\n");
-		//exit(EXIT_FAILURE);
+		printf("error in CreateWindow()\n");
+		exit(EXIT_FAILURE);
 	}
 	//второе окно:
 	status = CreateWindow(&wndUsers, &subwndUsers, 
 		size.ws_row - BOTTOM_WND_HEIGHT, RIGHT_WND_WIDTH, //размер окна
-		0, size.ws_col - RIGHT_WND_WIDTH,
-		" Users "); //координаты левого верхнего угла
+		0, size.ws_col - RIGHT_WND_WIDTH, //координаты левого верхнего угла
+		" Users ");
 	if (status) { 
-		printf("error\n");
-		//exit(EXIT_FAILURE);
+		printf("error in CreateWindow()\n");
+		exit(EXIT_FAILURE);
 	}
 	//3-ье окно:
 	status = CreateWindow(&wndInput, &subwndInput, 
 		BOTTOM_WND_HEIGHT, size.ws_col, //размер окна
-		size.ws_row - BOTTOM_WND_HEIGHT, 0,
-		" Your message (press Enter to send) "); //координаты левого верхнего угла
+		size.ws_row - BOTTOM_WND_HEIGHT, 0, //координаты левого верхнего угла
+		" Your message (press Enter to send) ");
 	if (status) {
-		printf("error\n");
-		//exit(EXIT_FAILURE);
+		printf("error in CreateWindow()\n");
+		exit(EXIT_FAILURE);
 	}	
 
 	wmove(subwndInput, 0, 0);
@@ -187,7 +207,6 @@ int main (int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    //int rowsInChat = 0;
 	//получить дефолтные значения атрибутов:
 	pthread_attr_t threadAttr;
 	pthread_attr_init(&threadAttr);
@@ -197,6 +216,7 @@ int main (int argc, char **argv)
 	pft.mqClient = mqClient;
 	pft.subwndChat = subwndChat;
 	pft.subwndInput = subwndInput;
+	pft.subwndUsers = subwndUsers;
 	void *ptrToStruct = &pft;
 	
 	/// создать поток, в котором будут обрабатываться получаемые сообщения и обновляться экран:
@@ -225,50 +245,10 @@ int main (int argc, char **argv)
             perror ("error in mq_send(), chatMessage");
             continue;
         }
-
-		/*
-        /// получить сообщение от сервера: 
-		char inBuffer[MAX_MSG_SIZE];
-        if (mq_receive (mqClient, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
-            perror ("Client: mq_receive");
-            exit (1);
-        }
-        
-        /// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
-		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
-		char substr1[MAX_MSG_SIZE];//malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
-		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
-		//printf("substr1 = %s\n", substr1);
-       
-        ///
-		if (strcmp("users", substr1) == 0) {
-			continue; //начать новую итерацию цикла
-		}       
-       
-		/// ........
-       	char* substr2 = malloc(sizeof(inBuffer) - sizeof(substr1));
-		strcpy(substr2, inBuffer + bytesForCopy + 1);
-		//printf("substr2 = %s\n", substr2);
-		//TODO вывод логов в файл
-       	
-		wattron(subwndChat, COLOR_PAIR(3));
-       	wmove(subwndChat, rowsInChat++, 0);
-       	//wrefresh(subwndChat);
-		wprintw(subwndChat, substr1);
-		wattron(subwndChat, COLOR_PAIR(1));
-		wmove(subwndChat, rowsInChat++, 0);
-		wprintw(subwndChat, substr2);
-		wrefresh(subwndChat);
-		*/
 		
 		werase(subwndInput);
 		wmove(subwndInput, 0, 0);
 		wrefresh(subwndInput);
-       
-       
-        // display token received from server
-        //printf ("Client: Token received from server: %s\n\n", inBuffer);
-        //printf ("Ask for a token (Press ): ");
     }
 
 

@@ -51,6 +51,27 @@ int main (int argc, char **argv)
 				strlen(inBuffer - bytesForCopy) * sizeof(char));
 			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
 			printf("new client %s joined\n", mqClientsTable[countClients - 1]); 
+			
+			/// отправка сообщения "users":
+			strcpy(outBuffer, "users;");
+			for (int i = 0; i < countClients; i++) {
+				strcat(outBuffer, mqClientsTable[i]);
+				strcat(outBuffer, ";");
+			}
+			printf("\"users\" message = %s\n", outBuffer);
+			for (int i = 0; i < countClients; i++) {
+		    	printf("prepare to send message \"users\" for client %s\n", mqClientsTable[i]);
+				if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
+				    perror("Server: Not able to open client queue");
+				    continue;
+				}
+
+				if (mq_send (mqClient, outBuffer, strlen(outBuffer) + 1, 5) == -1) {
+				    perror("Server: Not able to send message to client");
+				    continue;
+				}
+		    }
+			
 			continue; //начать новую итерацию цикла
 		}
 		
