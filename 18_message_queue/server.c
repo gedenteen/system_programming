@@ -67,17 +67,17 @@ int main (int argc, char **argv)
 		printf("substr2 = %s\n", substr2);
 
         /// отправить это сообщение всем клиентам, чтобы они обновили окно с чатом:
-        //TODO отправка всем клиентам
-        if ((mqClient = mq_open (substr1, O_WRONLY)) == 1) {
-            perror ("Server: Not able to open client queue");
-            continue;
-        }
+        for (int i = 0; i < countClients; i++) {
+        	printf("prepare to send message for client %s\n", mqClientsTable[i]);
+		    if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
+		        perror("Server: Not able to open client queue");
+		        continue;
+		    }
 
-        //sprintf (outBuffer, "%ld", tokenNumber);
-
-        if (mq_send (mqClient, inBuffer, strlen(inBuffer) + 1, 5) == -1) {
-            perror ("Server: Not able to send message to client");
-            continue;
+		    if (mq_send (mqClient, inBuffer, strlen(inBuffer) + 1, 5) == -1) {
+		        perror("Server: Not able to send message to client");
+		        continue;
+		    }
         }
 
         printf ("Server: response sent to client.\n");

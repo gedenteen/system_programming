@@ -4,6 +4,7 @@
 #include <sys/ioctl.h> //для обработки сигналов
 #include <signal.h> //для соединения сигнала и функции-обработчика
 #include <curses.h> //ncurses
+#include <pthread.h>
 
 //TODO посмотреть какие библиотеки для чего нужны
 
@@ -36,6 +37,69 @@ int CreateWindow(WINDOW **wnd, WINDOW **subwnd, int height, int width, int x, in
 		return 1;
 	wrefresh(*wnd);
 	return 0;
+}
+
+struct ParamsForThread
+{
+	mqd_t mqClient;
+	WINDOW *subwndChat;
+	WINDOW *subwndInput;
+};
+
+void *FuncForThread(void *param) 
+{
+	///
+	struct ParamsForThread *pft = (struct ParamsForThread*) param; 
+	mqd_t mqClient = pft->mqClient;
+	WINDOW *subwndChat = pft->subwndChat;
+	WINDOW *subwndInput = pft->subwndInput;
+
+	int rowsInChat = 0;
+	while (1) {
+		/// получить сообщение от сервера: 
+		char inBuffer[MAX_MSG_SIZE];
+		if (mq_receive(mqClient, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
+		    perror ("Client: mq_receive");
+		    exit (1);
+		}
+		
+		/// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
+		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
+		char substr1[MAX_MSG_SIZE];//malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
+		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
+		//printf("substr1 = %s\n", substr1);
+	   
+		///
+		if (strcmp("users", substr1) == 0) {
+			/*countClients++; //увеличить кол-во клиентов, о которых знает сервер
+			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
+			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
+				strlen(inBuffer - bytesForCopy) * sizeof(char));
+			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
+			printf("new client %s joined\n", mqClientsTable[countClients - 1]); */
+			continue; //начать новую итерацию цикла
+		}       
+	   
+		/// ........
+	   	char* substr2 = malloc(sizeof(inBuffer) - sizeof(substr1));
+		strcpy(substr2, inBuffer + bytesForCopy + 1);
+		//printf("substr2 = %s\n", substr2);
+		//TODO вывод логов в файл
+	   	
+		wattron(subwndChat, COLOR_PAIR(3));
+	   	wmove(subwndChat, rowsInChat++, 0);
+	   	//wrefresh(subwndChat);
+		wprintw(subwndChat, substr1);
+		wattron(subwndChat, COLOR_PAIR(1));
+		wmove(subwndChat, rowsInChat++, 0);
+		wprintw(subwndChat, substr2);
+		wrefresh(subwndChat);
+		
+		wmove(subwndInput, 0, 0);
+		wrefresh(subwndInput);
+		
+		//sleep(100);
+	}
 }
 
 int main (int argc, char **argv)
@@ -123,8 +187,24 @@ int main (int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    //printf ("Ask for a token (Press <ENTER>): ");
-    //char temp_buf[10];
+    //int rowsInChat = 0;
+	//получить дефолтные значения атрибутов:
+	pthread_attr_t threadAttr;
+	pthread_attr_init(&threadAttr);
+	
+	/// параметры для потока:
+	struct ParamsForThread pft;
+	pft.mqClient = mqClient;
+	pft.subwndChat = subwndChat;
+	pft.subwndInput = subwndInput;
+	void *ptrToStruct = &pft;
+	
+	/// создать поток, в котором будут обрабатываться получаемые сообщения и обновляться экран:
+	pthread_t threadForReceiveMessages;
+	if (pthread_create(&threadForReceiveMessages, &threadAttr, FuncForThread, ptrToStruct)) {
+		printf("error: can't create pthread\n");
+		exit(1);
+	}
 
     while (1) {//(fgets(temp_buf, 2, stdin)) {
 		/// считать сообщение, которое для чата:
@@ -146,6 +226,7 @@ int main (int argc, char **argv)
             continue;
         }
 
+		/*
         /// получить сообщение от сервера: 
 		char inBuffer[MAX_MSG_SIZE];
         if (mq_receive (mqClient, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
@@ -155,33 +236,34 @@ int main (int argc, char **argv)
         
         /// разбить полученное сообщение на 2 подстроки, которые всегда должны разделяться ';'
 		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
-		char* substr1 = malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
+		char substr1[MAX_MSG_SIZE];//malloc(sizeof(char) * bytesForCopy); //создать переменную для подстроки 1
 		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
-		printf("substr1 = %s\n", substr1);
+		//printf("substr1 = %s\n", substr1);
        
         ///
 		if (strcmp("users", substr1) == 0) {
-			/*countClients++; //увеличить кол-во клиентов, о которых знает сервер
-			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
-			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
-				strlen(inBuffer - bytesForCopy) * sizeof(char));
-			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
-			printf("new client %s joined\n", mqClientsTable[countClients - 1]); */
 			continue; //начать новую итерацию цикла
 		}       
        
 		/// ........
-       	char substr2[MAX_MSG_SIZE];
+       	char* substr2 = malloc(sizeof(inBuffer) - sizeof(substr1));
 		strcpy(substr2, inBuffer + bytesForCopy + 1);
 		//printf("substr2 = %s\n", substr2);
+		//TODO вывод логов в файл
        	
-       	wmove(subwndChat, 0, 0);
 		wattron(subwndChat, COLOR_PAIR(3));
+       	wmove(subwndChat, rowsInChat++, 0);
+       	//wrefresh(subwndChat);
 		wprintw(subwndChat, substr1);
-		wmove(subwndChat, 1, 0);
 		wattron(subwndChat, COLOR_PAIR(1));
+		wmove(subwndChat, rowsInChat++, 0);
 		wprintw(subwndChat, substr2);
 		wrefresh(subwndChat);
+		*/
+		
+		werase(subwndInput);
+		wmove(subwndInput, 0, 0);
+		wrefresh(subwndInput);
        
        
         // display token received from server
