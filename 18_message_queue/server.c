@@ -2,7 +2,7 @@
 
 void commandUsers(char **mqClientsTable, int countClients) 
 {
-    char *outBuffer = malloc (sizeof(char) * MSG_BUFFER_SIZE);
+    char *outBuffer = malloc(sizeof(char) * MSG_BUFFER_SIZE);
     mqd_t mqClient;
     
 	/// отправка сообщения "users" всем клиентам:
@@ -48,10 +48,11 @@ int main (int argc, char **argv)
 	/// переменные для хранения имен клиентов:
 	char** mqClientsTable = malloc(sizeof(char*)); //таблица с имена
 	int countClients = 0; //кол-во клиентов
-    char inBuffer[MSG_BUFFER_SIZE]; // буфер для приема сообщений
 	
 	/// обработка сообщений:
     while (1) {
+   		char *inBuffer = malloc(sizeof(char) * MSG_BUFFER_SIZE); // буфер для приема сообщений
+        
         /// получить сообщение (с самым высоким приоритетом, самое старое):
         if (mq_receive(mqServer, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
             perror ("error in mq_receive()");
@@ -66,7 +67,7 @@ int main (int argc, char **argv)
 		printf("substr1 = %s\n", substr1);
 		
 		/// если подстрока 1 == "join", то клиент хочет подключиться к серверу
-		if (strcmp("join", substr1) == 0) {
+		if (strncmp("join", substr1, 4) == 0) {
 			/// обновить таблицу с подключенными клиентами (пользователями)
 			countClients++; //увеличить кол-во клиентов, о которых знает сервер
 			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
@@ -81,12 +82,12 @@ int main (int argc, char **argv)
 		}
 		
 		/// выделить 2-ую подстроку:
-		char substr2[MAX_MSG_SIZE];
+		char *substr2 = malloc(sizeof(char) * MAX_MSG_SIZE);
 		strcpy(substr2, inBuffer + bytesForCopy + 1);
 		printf("substr2 = %s\n", substr2);
 		
 		/// если подстрока 1 == "exit", то клиент закрывает свою программу, надо удалить запись о нем:
-		if (strcmp("exit", substr1) == 0) {
+		if (strncmp("exit", substr1, 4) == 0) {
 			printf("process incoming message \"exit\"\n");
 			int i;
 			for (i = 0; i < countClients; i++) {
@@ -121,5 +122,7 @@ int main (int argc, char **argv)
 				exit(EXIT_FAILURE);
 		    }
         }
+        
+        free(inBuffer), free(substr1), free(substr2);
     } //конец while(1)
 }
