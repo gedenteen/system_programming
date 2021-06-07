@@ -48,6 +48,7 @@ struct ParamsForThread
 	WINDOW *subwndChat;
 	WINDOW *subwndInput;
 	WINDOW *subwndUsers;
+	FILE *fileLogs;
 };
 
 void *FuncForThread(void *param) 
@@ -59,6 +60,7 @@ void *FuncForThread(void *param)
 	WINDOW *subwndChat = pft->subwndChat;
 	WINDOW *subwndInput = pft->subwndInput;
 	WINDOW *subwndUsers = pft->subwndUsers;
+	FILE *fileLogs = pft->fileLogs;
 
 	/// цикл для приема и обработки сообщений:
 	int rowsInChat = 0; //сколько строк использовано в окне с чатом
@@ -66,20 +68,18 @@ void *FuncForThread(void *param)
 		/// получить сообщение от сервера (блокирующий вызов): 
 		char inBuffer[MAX_MSG_SIZE]; //буфер для сообщения
 		if (mq_receive(mqClient, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
-		    perror("error in mq_receive()");
+		    fprintf(fileLogs, "error in mq_receive()");
 		    exit(EXIT_FAILURE);
 		}
-		//printf("received message = %s\n", inBuffer);
+		fprintf(fileLogs, "received message = %s\n", inBuffer);
 		
 		/// разбить полученное сообщение на 2 подстроки, которые всегда разделяются ';'
 		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
 		char *substr1 = malloc(sizeof(char) * (bytesForCopy + 1)); //создать переменную для подстроки 1
 		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
-		//printf("substr1 = %s\n", substr1);
 	   
 		/// обработка сообщения "users" - нужно вывести имена (mqd_t mqClient) всех пользователей:
 		if (strcmp("users", substr1) == 0) {
-			//printf("substr2 = %s\n", substr2);
 			werase(subwndUsers);
 			int cntUsers = 0; //количество пользователей
 			int lb = bytesForCopy + 1; //левая граница в inBuffer, от которой будет идти поиск следующей ';'
@@ -90,7 +90,8 @@ void *FuncForThread(void *param)
 					break;
 				char username[rb + 1]; 
 				strncpy(username, inBuffer + lb, rb); //скопировать имя пользователя
-				//printf("username = %s\n", username);
+				
+				///вывести имена на экран:
 				wmove(subwndUsers, cntUsers++, 0);
 				if (strncmp(username, clientName, rb) == 0) { //если пишется имя текущего пользователя  	
 					wattron(subwndUsers, COLOR_PAIR(3)); //тогда выделить это имя зеленым цветом
@@ -112,8 +113,6 @@ void *FuncForThread(void *param)
 		/// у которого 1-ая подстрока = имени отправителя сообщения
 	   	char* substr2 = malloc(sizeof(inBuffer) - sizeof(substr1));
 		strcpy(substr2, inBuffer + bytesForCopy + 1);
-		//printf("substr2 = %s\n", substr2);
-		//TODO вывод логов в файл
 	   	
 	   	/// написать имя пользователя и его сообщение:
 		wattron(subwndChat, COLOR_PAIR(3)); //зеленый цвет текста
@@ -133,15 +132,22 @@ void *FuncForThread(void *param)
 
 int main (int argc, char **argv)
 {
+	/// открытие файла, в который будут записываться логи:
+	char* filename = malloc(sizeof(char) * 64);
+    sprintf(filename, "logs/client-%d.txt", getpid());
+	FILE *fileLogs = fopen(filename, "w");
+	if (fileLogs == NULL) {
+		perror("error in fopen()");
+		exit(EXIT_FAILURE);
+	}
+	fprintf(fileLogs, "start\n");
+
 	//=========================================================================//
 	// создание псевдографики на ncurses для чата, имен пользователей и пр.    //
 	//=========================================================================//
 
 	initscr(); //начало работы с ncurses
 	signal(SIGWINCH, Handling_SIGWINCH); 
-	//cbreak(); //...
-	//curs_set(TRUE); //курсор видимый 
-	//noecho(); //отключить вывод вводимых символов
 	
 	struct winsize size; //структура для размеров окна
 	ioctl(fileno(stdout), TIOCGWINSZ, (char *) &size); //получить размеры окна
@@ -161,9 +167,9 @@ int main (int argc, char **argv)
 	int status = CreateWindow(&wndChat, &subwndChat, 
 		size.ws_row - BOTTOM_WND_HEIGHT, size.ws_col - RIGHT_WND_WIDTH, //размер окна
 		0, 0, //координаты левого верхнего угла
-		" Chat ");
+		" Chat "); //подпись к окну
 	if (status) {
-		fprintf(stderr, "error in CreateWindow() for chat\n");
+		fprintf(fileLogs, "error in CreateWindow() for chat\n");
 		exit(EXIT_FAILURE);
 	}
 	//2-ое окно:
@@ -172,7 +178,7 @@ int main (int argc, char **argv)
 		0, size.ws_col - RIGHT_WND_WIDTH, //координаты левого верхнего угла
 		" Users ");
 	if (status) { 
-		fprintf(stderr, "error in CreateWindow() for users\n");
+		fprintf(fileLogs, "error in CreateWindow() for users\n");
 		exit(EXIT_FAILURE);
 	}
 	//3-ье окно:
@@ -181,7 +187,7 @@ int main (int argc, char **argv)
 		size.ws_row - BOTTOM_WND_HEIGHT, 0, //координаты левого верхнего угла
 		" Your message (press Enter to send, Ctrl-C to exit) ");
 	if (status) {
-		fprintf(stderr, "error in CreateWindow() for input\n");
+		fprintf(fileLogs, "error in CreateWindow() for input\n");
 		exit(EXIT_FAILURE);
 	}	
 
@@ -206,13 +212,13 @@ int main (int argc, char **argv)
 
 	/// открытие очереди сообщений клиента, через нее будут приниматься сообщения от сервера:
     if ((mqClient = mq_open (clientName, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &mqAttr)) == -1) {
-        perror("error in mq_open() for client");
+        fprintf(fileLogs, "error in mq_open() for client\n");
         exit(EXIT_FAILURE);
     }
 
 	/// открытие очереди сообщений сервера, она должна быть уже создана:
     if ((mqServer = mq_open (SERVER_QUEUE_NAME, O_WRONLY)) == -1) {
-        perror("error in mq_open() for server");
+        fprintf(fileLogs, "error in mq_open() for server\n");
         exit(EXIT_FAILURE);
     }
 
@@ -221,7 +227,7 @@ int main (int argc, char **argv)
 	strcpy(joinMessage, "join;"); //скопировать строку
 	strcat(joinMessage, clientName); //добавить строку в конец существующей
     if (mq_send(mqServer, joinMessage, strlen(joinMessage) + 1, 10) == -1) {
-        perror("error in mq_send(), joinMessage");
+        fprintf(fileLogs, "error in mq_send(), joinMessage\n");
         exit(EXIT_FAILURE);
     }
 
@@ -240,12 +246,13 @@ int main (int argc, char **argv)
 	pft.subwndChat = subwndChat;
 	pft.subwndInput = subwndInput;
 	pft.subwndUsers = subwndUsers;
+	pft.fileLogs = fileLogs;
 	void *ptrToStruct = &pft;
 	
 	/// создать поток:
 	pthread_t threadForReceiveMessages;
 	if (pthread_create(&threadForReceiveMessages, &threadAttr, FuncForThread, ptrToStruct)) {
-		fprintf(stderr, "error: can't create pthread\n");
+		fprintf(fileLogs, "error: can't create pthread\n");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -255,19 +262,18 @@ int main (int argc, char **argv)
 		char *message = malloc(sizeof(char) * (MAX_MSG_SIZE - strlen(clientName)));
 		message[0] = ch;
 		wgetnstr(subwndInput, message + 1, MAX_MSG_SIZE - strlen(clientName) - 1); //-1 из-за ch
-		
-		//printf("message = %s\n", message);
+		fprintf(fileLogs, "typed message = %s\n", message);
 		
 		/// создать сообщение (буфер), которое будет передаваться:
     	char chatMessage[MAX_MSG_SIZE];
     	strcpy(chatMessage, clientName); //скопировать строку
     	strcat(chatMessage, ";"); //добавить строку в конец существующей
     	strcat(chatMessage, message); //добавить строку в конец существующей
-    	//printf("chatMessage = %s\n", chatMessage);
+    	fprintf(fileLogs, "chatMessage for MQ = %s\n", chatMessage);
     	
     	/// отправить это сообщение в очередь сообщений (приоритет 5):
         if (mq_send(mqServer, chatMessage, strlen(chatMessage) + 1, 5) == -1) {
-            perror("error in mq_send(), chatMessage");
+            fprintf(fileLogs, "error in mq_send(), chatMessage\n");
             continue;
         }
 		
@@ -282,7 +288,7 @@ int main (int argc, char **argv)
 	strcpy(exitMessage, "exit;"); //скопировать строку
 	strcat(exitMessage, clientName); //добавить строку в конец существующей
     if (mq_send(mqServer, exitMessage, strlen(exitMessage) + 1, 10) == -1) {
-        perror("error in mq_send(), exitMessage");
+        fprintf(fileLogs, "error in mq_send(), exitMessage\n");
         exit(EXIT_FAILURE);
     }
 
@@ -301,5 +307,6 @@ int main (int argc, char **argv)
 	delwin(wndChat), delwin(wndUsers), delwin(wndInput); 
 	endwin(); //конец работы с ncurses
 	
+	fprintf(fileLogs, "exit success\n");
     exit(EXIT_SUCCESS);
 }
