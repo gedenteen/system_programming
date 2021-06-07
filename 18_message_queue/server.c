@@ -1,5 +1,31 @@
 #include "header.h"
 
+void commandUsers(char **mqClientsTable, int countClients) 
+{
+    char *outBuffer = malloc (sizeof(char) * MSG_BUFFER_SIZE);
+    mqd_t mqClient;
+    
+	/// отправка сообщения "users" всем клиентам:
+	strcpy(outBuffer, "users;\0");
+	for (int i = 0; i < countClients; i++) {
+		strcat(outBuffer, mqClientsTable[i]);
+		strcat(outBuffer, ";");
+	}
+	printf("\"users\" message = %s\n", outBuffer);
+	for (int i = 0; i < countClients; i++) {
+    	printf("prepare to send message \"users\" for client %s\n", mqClientsTable[i]);
+		if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
+		    perror("error in mq_open(), \"users\" message");
+		    exit(EXIT_FAILURE);
+		}
+
+		if (mq_send(mqClient, outBuffer, strlen(outBuffer) + 1, 5) == -1) {
+		    perror("error in mq_send(), \"users\" message");
+		    exit(EXIT_FAILURE);
+		}
+    }
+}
+
 int main (int argc, char **argv)
 {
 	/// создание очереди сообщений (mq = message queue):
@@ -18,14 +44,11 @@ int main (int argc, char **argv)
         perror ("error in mq_open() for server");
         exit(EXIT_FAILURE);
     }
-    
-    /// буферы для приема и отправки сообщений:
-    char inBuffer[MSG_BUFFER_SIZE];
-    char outBuffer[MSG_BUFFER_SIZE];
 
 	/// переменные для хранения имен клиентов:
-	char** mqClientsTable = malloc(sizeof(char*));
-	int countClients = 0;
+	char** mqClientsTable = malloc(sizeof(char*)); //таблица с имена
+	int countClients = 0; //кол-во клиентов
+    char inBuffer[MSG_BUFFER_SIZE]; // буфер для приема сообщений
 	
 	/// обработка сообщений:
     while (1) {
@@ -44,6 +67,7 @@ int main (int argc, char **argv)
 		
 		/// если подстрока 1 == "join", то клиент хочет подключиться к серверу
 		if (strcmp("join", substr1) == 0) {
+			/// обновить таблицу с подключенными клиентами (пользователями)
 			countClients++; //увеличить кол-во клиентов, о которых знает сервер
 			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients); //добавить строку в таблицу
 			mqClientsTable[countClients - 1] = malloc( //размер новой строки равен размеру имени клиента
@@ -51,41 +75,39 @@ int main (int argc, char **argv)
 			strcpy(mqClientsTable[countClients - 1], inBuffer + bytesForCopy + 1); //скопировать имя из подстроки 2
 			printf("new client %s joined\n", mqClientsTable[countClients - 1]); 
 			
-			/// отправка сообщения "users" всем клиентам:
-			strcpy(outBuffer, "users;");
-			for (int i = 0; i < countClients; i++) {
-				strcat(outBuffer, mqClientsTable[i]);
-				strcat(outBuffer, ";");
-			}
-			printf("\"users\" message = %s\n", outBuffer);
-			for (int i = 0; i < countClients; i++) {
-		    	printf("prepare to send message \"users\" for client %s\n", mqClientsTable[i]);
-				if ((mqClient = mq_open(mqClientsTable[i], O_WRONLY)) == 1) {
-				    perror("error in mq_open(), \"users\" message");
-				    exit(EXIT_FAILURE);
-				}
-
-				if (mq_send (mqClient, outBuffer, strlen(outBuffer) + 1, 5) == -1) {
-				    perror("error in mq_send(), \"users\" message");
-				    exit(EXIT_FAILURE);
-				}
-		    }
-			
-			continue; //начать новую итерацию цикла
+			/// отправить команду "users" (см. README.md)
+			commandUsers(mqClientsTable, countClients);
+			continue; //начать новую итерацию цикла while(1)
 		}
+		
+		/// выделить 2-ую подстроку:
+		char substr2[MAX_MSG_SIZE];
+		strcpy(substr2, inBuffer + bytesForCopy + 1);
+		printf("substr2 = %s\n", substr2);
 		
 		/// если подстрока 1 == "exit", то клиент закрывает свою программу, надо удалить запись о нем:
 		if (strcmp("exit", substr1) == 0) {
-			// TODO
-			continue;
+			printf("process incoming message \"exit\"\n");
+			int i;
+			for (i = 0; i < countClients; i++) {
+				if (strcmp(substr2, mqClientsTable[i]) == 0)
+					break;
+			}
+			for (int j = i + 1; j < countClients; j++) //смещение всех записей на 1 
+				strcpy(mqClientsTable[j - 1], mqClientsTable[j]);
+			
+			/// изменение памяти:
+			free(mqClientsTable[countClients - 1]);
+			countClients--;
+			mqClientsTable = realloc(mqClientsTable, sizeof(char*) * countClients);
+			
+			/// отправить команду "users" (см. README.md)
+			commandUsers(mqClientsTable, countClients);
+			continue; //начать новую итерацию цикла while(1)
 		}
 		
 		/// если программа дошла до сюда, значит, пользователь отправил сообщение в чат
 		/// подстрока 1 - это имя клиента, подстрока 2 - его сообщение:
-		char substr2[MAX_MSG_SIZE];
-		strcpy(substr2, inBuffer + bytesForCopy + 1);
-		printf("substr2 = %s\n", substr2);
-
         /// отправить это сообщение всем клиентам, чтобы они обновили окно с чатом:
         for (int i = 0; i < countClients; i++) {
         	printf("prepare to send message for client %s\n", mqClientsTable[i]);

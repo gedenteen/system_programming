@@ -69,15 +69,17 @@ void *FuncForThread(void *param)
 		    perror("error in mq_receive()");
 		    exit(EXIT_FAILURE);
 		}
+		//printf("received message = %s\n", inBuffer);
 		
 		/// разбить полученное сообщение на 2 подстроки, которые всегда разделяются ';'
 		long bytesForCopy = strcspn(inBuffer, ";"); //узнать номер символа ';'
-		char substr1[bytesForCopy + 1]; //создать переменную для подстроки 1
+		char *substr1 = malloc(sizeof(char) * (bytesForCopy + 1)); //создать переменную для подстроки 1
 		strncpy(substr1, inBuffer, bytesForCopy); //скопировать содержимое подстроки 1
 		//printf("substr1 = %s\n", substr1);
 	   
 		/// обработка сообщения "users" - нужно вывести имена (mqd_t mqClient) всех пользователей:
 		if (strcmp("users", substr1) == 0) {
+			//printf("substr2 = %s\n", substr2);
 			werase(subwndUsers);
 			int cntUsers = 0; //количество пользователей
 			int lb = bytesForCopy + 1; //левая граница в inBuffer, от которой будет идти поиск следующей ';'
@@ -246,11 +248,14 @@ int main (int argc, char **argv)
 		fprintf(stderr, "error: can't create pthread\n");
 		exit(EXIT_FAILURE);
 	}
-
-    while (1) {
+	
+	char ch = 0; //переменная для wgetch() 
+	while ((ch = wgetch(subwndInput)) != 27) { //27 - код клавиши ESC
 		/// считать сообщение, которое вводит пользователь для чата:
-		char message[MAX_MSG_SIZE - strlen(clientName)];
-		wgetnstr(subwndInput, message, MAX_MSG_SIZE - strlen(clientName));
+		char *message = malloc(sizeof(char) * (MAX_MSG_SIZE - strlen(clientName)));
+		message[0] = ch;
+		wgetnstr(subwndInput, message + 1, MAX_MSG_SIZE - strlen(clientName) - 1); //-1 из-за ch
+		
 		//printf("message = %s\n", message);
 		
 		/// создать сообщение (буфер), которое будет передаваться:
@@ -271,6 +276,15 @@ int main (int argc, char **argv)
 		wmove(subwndInput, 0, 0);
 		wrefresh(subwndInput);
     }
+    
+    /// отправка сообщения о выходе из чата (приоритет 10):
+	char exitMessage[6 + strlen(clientName)];
+	strcpy(exitMessage, "exit;"); //скопировать строку
+	strcat(exitMessage, clientName); //добавить строку в конец существующей
+    if (mq_send(mqServer, exitMessage, strlen(exitMessage) + 1, 10) == -1) {
+        perror("error in mq_send(), exitMessage");
+        exit(EXIT_FAILURE);
+    }
 
 	/*
     if (mq_close (mqClient) == -1) {
@@ -282,10 +296,10 @@ int main (int argc, char **argv)
         perror ("Client: mq_unlink");
         exit (1);
     }
-
+	*/
 	delwin(subwndChat), delwin(subwndUsers), delwin(subwndUsers);  
 	delwin(wndChat), delwin(wndUsers), delwin(wndInput); 
 	endwin(); //конец работы с ncurses
-	*/
+	
     exit(EXIT_SUCCESS);
 }
