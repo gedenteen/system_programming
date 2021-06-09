@@ -1,5 +1,5 @@
 all: client.exe server.exe
-	
+
 client.exe: client.o
 	gcc -o $@ $^
 client.o: client.c

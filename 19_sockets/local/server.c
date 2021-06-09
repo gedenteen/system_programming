@@ -1,17 +1,9 @@
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h> //для sockaddr_un; un от слова UNIX
-#include <string.h>
-#include <stdlib.h>
-
-#define SOCKET_FILENAME "/tmp/mySocket.socket"
-#define BUFFER_SIZE 256
+#include "header.h"
 
 int main(void) 
 {
 	/// заполнить структуру с локальным адресом для сокета:
-	struct sockaddr_un server, client;
+	struct sockaddr_un server;
 	server.sun_family = AF_LOCAL;
 	strncpy(server.sun_path, SOCKET_FILENAME, sizeof(server.sun_path) - 1);
 	
@@ -38,43 +30,43 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 	
-	/// цикл для обработки подключений:
-	//while (1) {
-		/// Шаг 4. Ожидание входящих подключений:
-		int fdDataSocket = accept(fdConnectSocket, NULL, NULL);
-		if (fdDataSocket == -1) {
-			perror("error in accept()");
+	/// здесь можно сделать цикл, в котором будут обрабатываться 
+	/// несколько клиентов 
+	
+	/// Шаг 4. Ожидание входящих подключений:
+	int fdDataSocket = accept(fdConnectSocket, NULL, NULL);
+	if (fdDataSocket == -1) {
+		perror("error in accept()");
+		exit(EXIT_FAILURE);
+	}
+		
+	/// обработка пакетов (кадров?) клиента:	
+	char buffer[BUFFER_SIZE];
+	while(1) {
+		/// ожидание пакета с данными:
+		ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
+		if (ret == -1) {
+			perror("error in read()");
 			exit(EXIT_FAILURE);
+		} 
+		
+		/// проверка на то, что буфер завершается 0:
+		//buffer[BUFFER_SIZE - 1] = 0;
+		
+		/// если получена команда для завершения общения: 
+		if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
+			close(fdDataSocket);
+			break;
 		}
-			
-		/// обработка пакетов (кадров?) клиента:	
-		char buffer[BUFFER_SIZE];
-		while(1) {
-			/// ожидание пакета с данными:
-			ret = read(fdDataSocket, buffer, BUFFER_SIZE);
-			if (ret == -1) {
-				perror("error in read()");
-				exit(EXIT_FAILURE);
-			} 
-			
-			/// проверка на то, что буфер завершается 0:
-			//buffer[BUFFER_SIZE - 1] = 0;
-			
-			///
-			if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
-				close(fdDataSocket);
-				break;
-			}
-			
-			//TODO заменить на recv и send
-			strcat(buffer, " echo-reply"); //добавить строку в конец существующей
-			ret = write(fdDataSocket, buffer, BUFFER_SIZE);
-			if (ret == -1) {
-				perror("error in write()");
-				exit(EXIT_FAILURE);
-			} 
-		}
-	//}
+		
+		/// иначе сделать эхо-ответ:
+		strcat(buffer, " echo-reply"); //добавить строку в конец существующей
+		ret = send(fdDataSocket, buffer, BUFFER_SIZE, 0);
+		if (ret == -1) {
+			perror("error in write()");
+			exit(EXIT_FAILURE);
+		} 
+	}
 	
 	/// удалить сокет:
 	close(fdConnectSocket);
