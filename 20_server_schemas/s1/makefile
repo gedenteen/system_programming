@@ -1,14 +1,16 @@
+FLAGS = -Wall -g -c -o
+
 all: client.exe server.exe
 
 client.exe: client.o
 	gcc -o $@ $^
 client.o: client.c
-	gcc -g -c -o $@ $<
+	gcc $(FLAGS) $@ $<
 
 server.exe: server.o -lpthread
 	gcc -o $@ $^
 server.o: server.c
-	gcc -g -c -o $@ $<
+	gcc $(FLAGS) $@ $<
 
 .PHONY: all clean run
 
