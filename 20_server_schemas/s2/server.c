@@ -13,45 +13,47 @@ void *FuncForThread(void *param)
 	    exit(EXIT_FAILURE);
 	}
 
-	/// получить сообщение (с самым высоким приоритетом, самое старое):
-    char inBuffer[MSG_BUFFER_SIZE];
-    if (mq_receive(mqDescr, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
-        perror("error in mq_receive() for created thread");
-   		exit(EXIT_FAILURE);
-    }
-    
-    /// преобразовать сообщение в дескриптор сокета:
-    int fdDataSocket = atoi(inBuffer);
-    printf("received fdDataSocket == %d\n", fdDataSocket);
-    
-	/// обработка пакетов (кадров?) клиента:	
-	while(1) {
-    	char buffer[BUFFER_SIZE] = {0};
-		/// ожидание пакета с данными:
-		int ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
-		if (ret == -1) {
-			perror("error in recv()");
-			exit(EXIT_FAILURE);
-		} 
-		printf("\nreceived: %s\n", buffer);
-		
-		/// проверка на то, что буфер завершается 0:
-		//buffer[BUFFER_SIZE - 1] = 0;
-		
-		/// если получена команда для завершения общения: 
-		if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
-			close(fdDataSocket);
-			pthread_exit(0);
+	while (1) {
+		/// получить сообщение через очередь (блокирующий вызов):
+	    char inBuffer[MSG_BUFFER_SIZE] = {0};
+	    if (mq_receive(mqDescr, inBuffer, MSG_BUFFER_SIZE, NULL) == -1) {
+	        perror("error in mq_receive() for created thread");
+	   		exit(EXIT_FAILURE);
+	    }
+	    
+	    /// преобразовать сообщение в дескриптор сокета:
+	    int fdDataSocket = atoi(inBuffer);
+	    printf("received fdDataSocket == %d\n", fdDataSocket);
+	    
+		/// обработка пакетов (кадров?) клиента:	
+		while(1) {
+	    	char buffer[BUFFER_SIZE] = {0};
+			/// ожидание пакета с данными:
+			int ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
+			if (ret == -1) {
+				perror("error in recv()");
+				exit(EXIT_FAILURE);
+			} 
+			printf("\nreceived: %s\n", buffer);
+			
+			/// проверка на то, что буфер завершается 0:
+			//buffer[BUFFER_SIZE - 1] = 0;
+			
+			/// если получена команда для завершения общения: 
+			if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
+				close(fdDataSocket);
+				break; //выход из цикла
+			}
+			
+			/// иначе сделать эхо-ответ:
+			strcat(buffer, " echo-reply"); //добавить строку в конец существующей
+			ret = send(fdDataSocket, buffer, BUFFER_SIZE, 0);
+			if (ret == -1) {
+				perror("error in send()");
+				exit(EXIT_FAILURE);
+			} 
+			printf("    sent: %s\n", buffer);
 		}
-		
-		/// иначе сделать эхо-ответ:
-		strcat(buffer, " echo-reply"); //добавить строку в конец существующей
-		ret = send(fdDataSocket, buffer, BUFFER_SIZE, 0);
-		if (ret == -1) {
-			perror("error in send()");
-			exit(EXIT_FAILURE);
-		} 
-		printf("    sent: %s\n", buffer);
 	}
 }
 
@@ -101,7 +103,7 @@ int main(void)
 	mqd_t mq[CNT_THREADS]; //дескрипторы очередей сообщений
 	char **mqNames = malloc(sizeof(char *) * CNT_THREADS); 
 
-	/// создать потоки и все что с ними связано:
+	/// создать очереди сообщений и потоки:
 	for (int i = 0; i < CNT_THREADS; i++) {
 		/// создание очерди сообщений:
 		mqNames[i] = malloc(sizeof(char) * 32);
@@ -122,6 +124,7 @@ int main(void)
 	
 	/// цикл обработки подключений:
 	for (int i = 0; ; i++) {
+		/// i - номер потока, проверка на выход из макс-го кол-ва:
 		if (i == CNT_THREADS)
 			i = 0;
 

@@ -9,7 +9,6 @@ int main()
 	server.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	
 	/// Шаг 1. Создать файловый дескриптор сокета
-	/// (локальное IPC, потоковый протокол TCP, протокол по умолчанию):
 	int fdDataSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (fdDataSocket == -1) {
 		perror("error in socket()");
