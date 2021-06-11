@@ -25,7 +25,7 @@ int main()
 	}
 	
 	while (1) {
-    	char buffer[BUFFER_SIZE] = {0};//char *buffer = malloc(sizeof(char) * BUFFER_SIZE);
+    	char buffer[BUFFER_SIZE] = {0};
 		printf("enter your message for the server (\"END\" to exit):\n");
 		fgets(buffer, BUFFER_SIZE, stdin);
 		
@@ -47,7 +47,6 @@ int main()
 			exit(EXIT_FAILURE);
 		}
 		printf("received: %s\n\n", buffer);
-		//free(buffer);
 	}
 	
 	close(fdDataSocket);
