@@ -6,10 +6,7 @@
 /// функция для потока, в которой ожидается дескриптор сокета,
 /// через который надо общаться с клиентом:
 void *FuncForThread(void *param) 
-{
-	/// преобразование параметра:
-	//struct paramForThread *thrInfo = (struct paramForThread *)param;	
-
+{	
 	/// подключиться к очереди сообщений:
 	mqd_t mqDescr;
 	if ((mqDescr = mq_open(MQ_NAME, O_RDONLY)) == 1) {
