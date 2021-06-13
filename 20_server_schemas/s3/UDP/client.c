@@ -5,7 +5,7 @@ int main()
 	/// заполнить структуру с адресом для сокета:
 	struct sockaddr_in server;
 	server.sin_family = AF_INET; //sun = socket UNIX, sin = socket inet
-	server.sin_port = htons(7777); //перевести в big endian
+	server.sin_port = htons(PORT); //перевести в big endian
 	server.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	
 	/// Шаг 1. Создать файловый дескриптор сокета
@@ -15,34 +15,27 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 	
-	/// Шаг 2. Соединиться к уже созданному сокету:
-	// int ret = connect(fdDataSocket, (const struct sockaddr *) &server,
-	//                   sizeof(struct sockaddr_in)); 
-	// if (ret == -1) {
-	// 	perror("error in connect()");
-	// 	exit(EXIT_FAILURE);
-	// }
-	
 	while (1) {
-    	char buffer[BUFFER_SIZE] = {0};
+    	char buffer[FRAME_SIZE] = {0};
 		printf("enter your message for the server (\"END\" to exit):\n");
-		fgets(buffer, BUFFER_SIZE, stdin);
+		fgets(buffer, FRAME_SIZE, stdin);
+
+		/// если получена команда для завершения общения: 
+		if (strncmp(buffer, "END", 3) == 0)
+			break;
 		
+		/// отправка сообщения (-1 чтобы убрать перевод строки):
 		int ret = sendto(fdDataSocket, buffer, strlen(buffer) - 1, 0,
 		                 (struct sockaddr *)&server, 
 		                 sizeof(server));
-		//-1 чтобы убрать перевод строки
 		if (ret == -1) {
 			perror("error in sendto()");
 			exit(EXIT_FAILURE);
 		}
 		printf("    sent: %s", buffer);
-		
-		/// если получена команда для завершения общения: 
-		if (strncmp(buffer, "END", 3) == 0)
-			break;
-		
-		ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
+
+		///получение сообщения:
+		ret = recv(fdDataSocket, buffer, FRAME_SIZE, 0);
 		if (ret == -1) {
 			perror("error in recv()");
 			exit(EXIT_FAILURE);
