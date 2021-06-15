@@ -117,6 +117,9 @@ int main(void)
 	
 	/// цикл обработки подключений:
 	for (int i = 0; ; i++) {
+		if (i >= CNT_THREADS)
+			i = 0;
+
 		/// Шаг 4. Ожидание входящих подключений:
 		fdDataSocket[i] = accept(fdConnectSocket, NULL, NULL);
 		if (fdDataSocket[i] == -1) {

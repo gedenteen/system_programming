@@ -9,9 +9,7 @@
 #include <stdlib.h> //exit()
 #include <unistd.h> //для работы с файлами: close(), unlink()
 
-#define BUFFER_SIZE 256
 #define CNT_THREADS 10
-
 #define QUEUE_PERMISSIONS 0660
 #define MAX_MESSAGES 10
 #define MAX_MSG_SIZE 256

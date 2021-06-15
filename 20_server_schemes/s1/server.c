@@ -23,6 +23,8 @@ void *FuncForThread(void *param)
 		if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
 			printf("close fdDataSocket == %d...\n", *fdDataSocket);
 			close(*fdDataSocket);
+			*fdDataSocket = -1; //обозначить, что переменная свободна
+			                    //для использования
 			pthread_exit(0);
 		}
 		
@@ -75,9 +77,23 @@ int main(void)
 	const int maxSockets = 100; 
 	pthread_t thrId[maxSockets]; 
 	int fdDataSocket[maxSockets];
+
+	/// инициализровать -1, которые означают, что данная переменная 
+	/// никем не используется:
+	for (int i = 0; i < maxSockets; i++)
+		fdDataSocket[i] = -1;
 	
 	/// цикл обработки подключений:
 	for (int i = 0; i < maxSockets; i++) {
+		/// если итерация дошла до 100, то начать заново:
+		if (i == maxSockets) 
+			i = 0;
+
+		/// если данный ФД испольуется, то его не трогать, попробовать
+		/// следующий:
+		if (fdDataSocket[i] != -1) 
+			continue;
+
 		/// Шаг 4. Ожидание входящих подключений:
 		printf("accept...\n");
 		fdDataSocket[i] = accept(fdConnectSocket, NULL, NULL);
