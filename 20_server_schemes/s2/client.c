@@ -24,9 +24,9 @@ int main()
 	}
 	
 	while (1) {
-    	char buffer[BUFFER_SIZE] = {0};
+    	char buffer[MAX_MSG_SIZE] = {0};
 		printf("enter your message for the server (\"END\" to exit):\n");
-		fgets(buffer, BUFFER_SIZE, stdin);
+		fgets(buffer, MAX_MSG_SIZE, stdin);
 		
 		ret = send(fdDataSocket, buffer, strlen(buffer) - 1, 0);
 		//-1 чтобы убрать перевод строки
@@ -40,7 +40,7 @@ int main()
 		if (strncmp(buffer, "END", 3) == 0)
 			break;
 		
-		ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
+		ret = recv(fdDataSocket, buffer, MAX_MSG_SIZE, 0);
 		if (ret == -1) {
 			perror("error in recv()");
 			exit(EXIT_FAILURE);

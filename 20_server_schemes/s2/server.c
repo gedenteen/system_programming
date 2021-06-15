@@ -38,11 +38,11 @@ void *FuncForThread(void *param)
 	    int fdDataSocket = atoi(inBuffer);
 	    printf("received fdDataSocket == %d\n", fdDataSocket);
 	    
-		/// обработка пакетов (кадров?) клиента:	
+		/// обработка кадров клиента:	
 		while(1) {
-	    	char buffer[BUFFER_SIZE] = {0};
+	    	char buffer[MAX_MSG_SIZE] = {0};
 			/// ожидание пакета с данными:
-			int ret = recv(fdDataSocket, buffer, BUFFER_SIZE, 0);
+			int ret = recv(fdDataSocket, buffer, MAX_MSG_SIZE, 0);
 			if (ret == -1) {
 				perror("error in recv()");
 				exit(EXIT_FAILURE);
@@ -50,7 +50,7 @@ void *FuncForThread(void *param)
 			printf("\nreceived: %s\n", buffer);
 			
 			/// если получена команда для завершения общения: 
-			if (strncmp(buffer, "END", BUFFER_SIZE) == 0) {
+			if (strncmp(buffer, "END", MAX_MSG_SIZE) == 0) {
 				close(fdDataSocket);
 				//"сообщить", что поток освободился:
 				threadAvailable[thrInfo->index] = 1; 
@@ -59,7 +59,7 @@ void *FuncForThread(void *param)
 			
 			/// иначе сделать эхо-ответ:
 			strcat(buffer, " echo-reply"); //добавить строку в конец существующей
-			ret = send(fdDataSocket, buffer, BUFFER_SIZE, 0);
+			ret = send(fdDataSocket, buffer, MAX_MSG_SIZE, 0);
 			if (ret == -1) {
 				perror("error in send()");
 				exit(EXIT_FAILURE);
