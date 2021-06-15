@@ -20,9 +20,6 @@ struct messageInMqTcp {
 /// через который надо общаться с клиентом:
 void *FuncForThread(void *param) 
 {	
-	/// получить дескриптор сокета из параметра функции:
-	//int *fdSockUDP = (int *)param; 
-
 	/// подключиться к очереди сообщений:
 	mqd_t mqDescr;
 	if ((mqDescr = mq_open(MQ_NAME, O_RDONLY)) == 1) {
@@ -99,6 +96,10 @@ void *FuncForThread(void *param)
 
 int main(void) 
 {	
+	//======================================================//
+	// UDP, очередь сообщений, потоки (под-серверы)         //
+	//======================================================//
+
 	/// заполнить структуру с адресом для сокета:
 	struct sockaddr_in server;
 	server.sin_family = AF_INET; //sun = socket UNIX, sin = socket inet
@@ -142,17 +143,17 @@ int main(void)
 	pthread_attr_t thrAttr;
 	pthread_attr_init(&thrAttr);
 
-	/// создать очереди сообщений и потоки:
+	/// создать потоки:
 	for (int i = 0; i < CNT_THREADS; i++) {
-	    /// создание потока:
-	    //void *param = (void *)&fdSockUDP;
 		if (pthread_create(&thrId[i], &thrAttr, FuncForThread, NULL)) {
 			fprintf(stderr, "error: can't create pthread\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	//=====================================================//
+	//======================================================//
+	// TCP, мультиплексированный ввод-вывод                 //
+	//======================================================//
 
 	/// Шаг 1. Создать файловый дескриптор сокета:
 	int fdConnectSockTCP = socket(AF_INET, SOCK_STREAM, 0);
@@ -175,9 +176,8 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
-	int fdDataSockTCP[CNT_THREADS] = {0}; //файловые дескрипторы сокетов
-
-	//=====================================================//
+	/// сокет для подключения к клиенту:
+	int fdDataSockTCP;
 
 	/// Мультиплексированный ввод-вывод для обоих сокетов:
 	struct pollfd fds[2];
@@ -186,10 +186,13 @@ int main(void)
 	fds[1].fd = fdConnectSockTCP; 
 	fds[1].events = POLLIN;
 
-	/// цикл обработки подключений:
-	int i = 0; //переменная для TCP (см. ниже)
+	//======================================================//
+	// цикл обработки подключений                           //
+	//======================================================//
+
 	while(1) {
-		///
+		/// блокирующий вызов, пока один клиент не пришлет кадр (UDP) 
+		/// или не подключится (TCP):
 		ret = poll(fds, 2, -1);
 		if (ret == -1) {
 			perror("error in poll()");
@@ -231,14 +234,9 @@ int main(void)
 
 		/// если получен кадр по протоколу TCP:
 		if (fds[1].revents & POLLIN) {
-			/// aaaaaaaaaaaaaaaa
-			i++;
-			if (i >= CNT_THREADS)
-				i = 0;
-
 			/// Шаг 4. Ожидание входящих подключений:
-			fdDataSockTCP[i] = accept(fdConnectSockTCP, NULL, NULL);
-			if (fdDataSockTCP[i] == -1) {
+			fdDataSockTCP = accept(fdConnectSockTCP, NULL, NULL);
+			if (fdDataSockTCP == -1) {
 				perror("error in accept(), TCP");
 				exit(EXIT_FAILURE);
 			}
@@ -247,18 +245,14 @@ int main(void)
 			/// отослать сообщение через MQ:
 			struct messageInMqTcp message;
 			strcpy(message.protocol, "TCP\0");
-			message.fdDataSockTCP = fdDataSockTCP[i];
-			ret = mq_send(mqDescr, (char *)&message, 
-			              sizeof(message), 5);
+			message.fdDataSockTCP = fdDataSockTCP;
+			ret = mq_send(mqDescr, (char *)&message, sizeof(message), 5);
 			if (ret == -1) {
 			    perror("error in mq_send(), TCP for main thread");
 			    exit(EXIT_FAILURE);
 			}
 		}
 	} //конец while(1)
-	
-	/// удалить сокет:
-	//close(fdSockUDP);
 	
 	exit(EXIT_SUCCESS);
 }
