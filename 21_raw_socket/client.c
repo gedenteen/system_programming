@@ -1,81 +1,90 @@
 #include "header.h"
 
-struct UdpHeader {
-	unsigned short sourcePort;
-	unsigned short destPort;
-    unsigned short udpLen;
-    unsigned short udpSum;
-};
-
-int main(void) 
+void sendingMessages(struct sockaddr_in server, int fdSocket)
 {
-	/// заполнить структуру с адресом для сокета:
+	socklen_t sockaddrLen = sizeof(struct sockaddr_in);
+	int ret;
+
+	/// Считывание сообщения из stdin:
+	printf("enter your message: ");
+	char *message = malloc((PACKET_SIZE - sockaddrLen) * sizeof(char));
+	memset(message, 0, PACKET_SIZE - sockaddrLen);
+	fgets(message, PACKET_SIZE - sockaddrLen, stdin);
+
+	/// Создание пакета с UDP-заголовком:
+	char *packet = malloc(PACKET_SIZE * sizeof(char));
+	memmove(packet + 8, message, strlen(message) - 1);
+	//-1 чтобы убрать '\n'
+
+	/// Заполнение UDP-заголовка:
+	const int myPort = 7654;
+	struct udphdr *udpHeader;
+	udpHeader = (struct udphdr *)packet;
+	udpHeader->source = htons(myPort);
+	udpHeader->dest = htons(SERVER_PORT);
+	udpHeader->check = 0;
+	udpHeader->len = htons(strlen(message) - 1 + sizeof(struct udphdr));
+	//-1 чтобы убрать '\n'
+
+	/// Отправка пакета:
+	ret = sendto(fdSocket, packet, PACKET_SIZE, 0, 
+		         (struct sockaddr *)&server, sockaddrLen);
+	if (ret < 0) {
+		perror("error in sendto()");
+		exit(EXIT_FAILURE);
+	}
+	printf("sended to server %d bytes\n", ret);
+
+	/// Обработка всех UDP-пакетов в системе:
+	while(1) {
+		memset(packet, 0, PACKET_SIZE);
+		ret = recvfrom(fdSocket, packet, PACKET_SIZE, 0, 
+			           (struct sockaddr *)&server, &sockaddrLen);
+		if (ret < 0) {
+			perror("error in recvfrom()");
+			exit(EXIT_FAILURE);
+		}
+
+		struct iphdr *ipHeader = (struct iphdr *)packet;
+		udpHeader = (struct udphdr *) (packet + sizeof(struct iphdr));
+
+		/// Если в пакете указан придуманный порт выше (7654):
+		if (ntohs(udpHeader->dest) == myPort) {
+			struct in_addr saddr;
+			saddr.s_addr = ipHeader->saddr;
+			printf("server IP = %s, source port = %d, destination port = %d\n", 
+				   inet_ntoa(saddr), 
+				   ntohs(udpHeader->source), ntohs(udpHeader->dest));
+			printf("received packet = %d bytes\n", ret);  
+			printf("message: %s\n\n", packet + sizeof(struct iphdr) 
+				   + sizeof(struct udphdr));
+
+			break; //перестать обрабатывать UDP-пакеты
+		}
+	}
+
+	free(message), free(packet);
+}
+
+int main(void)
+{
+	/// End-point сервера:
 	struct sockaddr_in server;
-	server.sin_family = AF_INET; //sun = socket UNIX, sin = socket inet
-	server.sin_port = htons(SERVER_PORT); //перевести в big endian
-	server.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	
-	/// Шаг 1. Создать файловый дескриптор сокета
+	server.sin_family = AF_INET;
+	server.sin_port = htons(SERVER_PORT);
+	server.sin_addr.s_addr = INADDR_ANY;
+
+	/// Сокет:
 	int fdSocket = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
-	if (fdSocket == -1) {
+	if (fdSocket < 0) {
 		perror("error in socket()");
 		exit(EXIT_FAILURE);
 	}
-	printf("RAW socket is created\n");
 
-	//const int my
-
-	///
-	struct UdpHeader udpHeader; 
-	const int totalSize = sizeof(udpHeader) + MESSAGE_SIZE * sizeof(char);
-    udpHeader.sourcePort = htons(7654);
-    udpHeader.destPort = htons(SERVER_PORT);
-    udpHeader.udpLen = htons(totalSize);
-    udpHeader.udpSum = 0;
-    printf("UDP header is created\n");
-	
-	/// отправка сообщений:
 	while (1) {
-		/// считать сообщение, вводимое пользователем:
-    	char message[MESSAGE_SIZE] = {0};
-		printf("enter your message for the server (\"END\" to exit):\n");
-		fgets(message, MESSAGE_SIZE, stdin);
-
-		/// выделить память для отправки кадра (или не кадра):
-		char *bufferToSend = malloc(totalSize + 1); //буфер для отправки на сервер
-		char *ptrToBuffer = bufferToSend; //указатель на этот буфер
-
-		/// в начале UDP-заголовок, потому что в RAW заголовок для 
-		/// канального уровня не заполняется:
-        memcpy(ptrToBuffer, &udpHeader, sizeof(udpHeader));
-        ptrToBuffer += sizeof(udpHeader);
-
-        /// теперь само сообщение, т.е. payload:
-        memcpy(ptrToBuffer, message, MESSAGE_SIZE * sizeof(char));
-		
-		/// отправка сообщения (-1 чтобы убрать перевод строки):
-		int ret = sendto(fdSocket, bufferToSend, totalSize, 0,
-		                 (struct sockaddr *)&server, 
-		                 sizeof(server));
-		if (ret == -1) {
-			perror("error in sendto()");
-			exit(EXIT_FAILURE);
-		}
-		printf("    sent: %s", message);
-
-		/// если получена команда для завершения общения: 
-		if (strncmp(message, "END", 3) == 0)
-			break;
-
-		///получение сообщения:
-		ret = recv(fdSocket, message, MESSAGE_SIZE, 0);
-		if (ret == -1) {
-			perror("error in recv()");
-			exit(EXIT_FAILURE);
-		}
-		printf("received: %s\n\n", message);
+		sendingMessages(server, fdSocket);
 	}
-	
+
 	close(fdSocket);
-	exit(EXIT_SUCCESS);
+	return 0;
 }
