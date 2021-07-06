@@ -43,32 +43,20 @@ void sendingMessages(struct sockaddr_in server, int fdSocket)
 	        message, strlen(message) - 1);
 	//-1 чтобы убрать '\n'
 
-	/// Включение возможности изменять IP-заголовок:
-	int one = 1; //установить флаг в 1
-	const int *val = &one;
-	ret = setsockopt(fdSocket, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one));
-	              //(сокет, уровень флагов, флаг, значение флага, длина)
-	if (ret < 0) {
-		perror("error in setsockopt()");
-		exit(EXIT_FAILURE);
-	}
-
 	/// Заполнение IP-заголовка:
 	struct iphdr *ipHeader;
 	ipHeader = (struct iphdr *)packet;
 	ipHeader->ihl = 5; //длина заголовка в 4-байтных словах
 	ipHeader->version = 4; //версия IP протокола
 	ipHeader->tos = 0; //тип сервиса, приоритет важности информации
-	ipHeader->tot_len = sizeof(struct iphdr) + sizeof(struct udphdr) + strlen(message);
 	ipHeader->id = htonl(54321); //Id of this packet
 	ipHeader->frag_off = 0; //флаги и смещение в 8-битных словах (если пакет фрагментирован)
 	ipHeader->ttl = 255; //time to live, через сколько узлов может пройти пакет
 	ipHeader->protocol = IPPROTO_UDP; //протокол транспортного уровня
-	ipHeader->check = 0; //установить в 0 перед вычислением чек-суммы
 	ipHeader->saddr = INADDR_ANY; //адрес-источник 
 	ipHeader->daddr = server.sin_addr.s_addr; //адрес-куда-доставить
-	ipHeader->check = csum ((unsigned short *)packet, ipHeader->tot_len); 
 	//чек-сумма считается только для заголовка
+	//длина пакета и чек-сумма заполняются системой в любом случае
 
 	/// Заполнение UDP-заголовка:
 	const int myPort = 7654;
@@ -132,6 +120,16 @@ int main(void)
 	int fdSocket = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
 	if (fdSocket < 0) {
 		perror("error in socket()");
+		exit(EXIT_FAILURE);
+	}
+
+	/// Включение возможности изменять IP-заголовок:
+	int one = 1; //установить флаг в 1
+	const int *val = &one;
+	int ret = setsockopt(fdSocket, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one));
+	                  //(сокет, уровень флагов, флаг, значение флага, длина)
+	if (ret < 0) {
+		perror("error in setsockopt()");
 		exit(EXIT_FAILURE);
 	}
 
