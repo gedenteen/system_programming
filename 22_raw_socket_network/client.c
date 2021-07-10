@@ -39,7 +39,7 @@ void sendingMessages(struct sockaddr_in server, int fdSocket)
 
 	/// Создание пакета с UDP-заголовком:
 	char *packet = malloc(PACKET_SIZE * sizeof(char));
-	memmove(packet + 28,
+	memmove(packet + sizeof(struct iphdr) + sizeof(struct udphdr),
 	        message, strlen(message) - 1);
 	//-1 чтобы убрать '\n'
 
