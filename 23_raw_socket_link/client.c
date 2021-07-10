@@ -46,13 +46,13 @@ void sendingMessages(struct sockaddr_ll server, int fdSocket)
 	/// zapolnenie Ethernet-zagalovka:
 	unsigned char dest[6] = {0x08, 0x00, 0x27, 0x95, 0xbb, 0xaa};
 	unsigned char source[6] = {0x08, 0x00, 0x27, 0x96, 0xaf, 0xb8};
-	struct ether_header *ethh;
-	ethh = (struct ether_header *) packet;
+	struct ether_header *etherHeader;
+	etherHeader = (struct ether_header *) packet;
 	for (int i = 0; i < 6; i++) {
-		ethh->ether_shost[i] = source[i];
-		ethh->ether_dhost[i] = dest[i];
+		etherHeader->ether_shost[i] = source[i];
+		etherHeader->ether_dhost[i] = dest[i];
 	}
-	ethh->ether_type = htons(ETHERTYPE_IP);
+	etherHeader->ether_type = htons(ETHERTYPE_IP);
 	//v etom zagalovke ne nushno perevodit' v Big-endian
 
 	/// Заполнение IP-заголовка:
@@ -66,7 +66,7 @@ void sendingMessages(struct sockaddr_ll server, int fdSocket)
 	ipHeader->ttl = 255; //time to live, через сколько узлов может пройти пакет
 	ipHeader->protocol = IPPROTO_UDP; //протокол транспортного уровня
 	ipHeader->saddr = inet_addr(CLIENT_IP);//INADDR_ANY; //адрес-источник 
-	ipHeader->daddr =  inet_addr(SERVER_IP);//server.sin_addr.s_addr; //адрес-куда-доставить
+	ipHeader->daddr = inet_addr(SERVER_IP);//server.sin_addr.s_addr; //адрес-куда-доставить
 	ipHeader->tot_len = htons(ipHeader->ihl * 4 +
 	                          sizeof(struct udphdr) +
 	                          strlen(message) - 1);
@@ -106,22 +106,45 @@ void sendingMessages(struct sockaddr_ll server, int fdSocket)
 			exit(EXIT_FAILURE);
 		}
 
-		struct iphdr *ipHeader = (struct iphdr *)packet;
-		udpHeader = (struct udphdr *) (packet + sizeof(struct iphdr));
-
-		/// Если в пакете указан придуманный порт выше (7654):
-		if (ntohs(udpHeader->dest) == myPort) {
-			struct in_addr saddr;
-			saddr.s_addr = ipHeader->saddr;
-			printf("server IP = %s, source port = %d, destination port = %d\n", 
-				   inet_ntoa(saddr), 
-				   ntohs(udpHeader->source), ntohs(udpHeader->dest));
+		etherHeader = (struct ether_header *) packet;
+		short int correctMac = 1;
+		for (int i = 0; i < 6; i++) {
+			if (etherHeader->ether_dhost[i] != source[i]) {
+				correctMac = 0;
+				break;
+			}
+		}
+		if (correctMac == 0) 
+			continue; //togda posmotret' sleduyshii packet
+		
+		ipHeader = (struct iphdr *) 
+		           (packet + sizeof(struct ether_header));
+		struct in_addr addr;
+		addr.s_addr = ipHeader->daddr;
+		
+		if (strcmp(CLIENT_IP, inet_ntoa(addr)) != 0)
+			continue; //togda posmotret' sleduyshii packet        
+		           
+		udpHeader = (struct udphdr *) 
+		            (packet + sizeof(struct ether_header) +
+		             ipHeader->ihl * 4);
+		           
+		if (ntohs(udpHeader->dest) != myPort) 
+			continue; //togda posmotret' sleduyshii packet
+			
+		printf("\nreceived packet:\n");
+		printf("destination MAC-address = ");
+		for (int i = 0; i < 6; i++)
+			printf("%0X ", (int) etherHeader->ether_dhost[i]);
+		printf("\n");
+		printf("destination IP-address = %s\n", inet_ntoa(addr)); 
+		printf("destination port = %d\n", ntohs(udpHeader->dest)); 
+		
 			printf("received packet = %d bytes\n", ret);  
-			printf("message: %s\n\n", packet + sizeof(struct iphdr) 
-				   + sizeof(struct udphdr));
+			printf("message: %s\n\n", (packet + sizeof(struct ether_header) + ipHeader->ihl * 4 + sizeof(struct udphdr)));
 
 			break; //перестать обрабатывать UDP-пакеты
-		}
+		
 	}
 
 	free(message), free(packet);
@@ -129,9 +152,6 @@ void sendingMessages(struct sockaddr_ll server, int fdSocket)
 
 int main(void)
 {
-	printf("sizeof(struct ether_header) = %ld\n", 	sizeof(struct ether_header));
-	printf("index setevoj karti = %d\n", if_nametoindex("enp0s3"));
-
 	/// End-point сервера:
 	struct sockaddr_ll server;
 	memset(&server, 0, sizeof(server));
