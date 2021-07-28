@@ -2,9 +2,7 @@ STANDARD_FLAGS = -Wall -g -c -o
 
 all: test0.exe test1.exe test2.exe test3.exe test4.exe \
 test5.exe test6.exe test7.exe test8.exe test9.exe test10.exe\
-test11.exe\
-cursed0.exe cursed1.exe cursed2.exe \
-cursed3.exe cursed4.exe cursed5.exe
+test11.exe
 
 test0.exe: test0.o
 	gcc -o $@ $<
@@ -69,24 +67,5 @@ test11.exe: test11.o
 test11.o: test11.c
 	gcc $(STANDARD_FLAGS) $@ $<
 
-#TODO: доделать ниже
-cursed0.exe:
-	gcc cursed0.c -o cursed0.exe -lncurses
-	
-cursed1.exe:
-	gcc cursed1.c -o cursed1.exe -lncurses
-		
-cursed2.exe:
-	gcc cursed2.c -o cursed2.exe -lncurses
-		
-cursed3.exe:
-	gcc cursed3.c -o cursed3.exe -lncurses
-		
-cursed4.exe:
-	gcc cursed4.c -o cursed4.exe -lncurses
-	
-cursed5.exe:
-	gcc cursed5.c -o cursed5.exe -lncurses
-	
 clean:
 	rm -rf test?
