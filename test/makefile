@@ -12,7 +12,7 @@ test0.o: test0.c
 test1.exe: test1.o
 	gcc -o $@ $<
 test1.o: test1.c
-	gcc $(STANDARD_FLAGS) $@ $<
+	gcc -O3 $(STANDARD_FLAGS) $@ $<
 
 test2.exe: test2.o
 	gcc -o $@ $<
@@ -68,4 +68,4 @@ test11.o: test11.c
 	gcc $(STANDARD_FLAGS) $@ $<
 
 clean:
-	rm -rf test?
+	rm -rf *.exe
