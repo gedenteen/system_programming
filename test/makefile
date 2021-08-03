@@ -1,8 +1,8 @@
 STANDARD_FLAGS = -Wall -g -c -o
 
 all: test0.bin test1.bin test2.bin test3.bin test4.bin \
-test5.bin test6.bin test7.bin test8.bin test9.bin test10.bin\
-test11.bin
+test5.bin test6.bin test7.bin test8.bin test9.bin test10.bin \
+test11.bin test13.bin
 
 test0.bin: test0.o
 	gcc -o $@ $<
@@ -67,5 +67,10 @@ test11.bin: test11.o
 test11.o: test11.c
 	gcc $(STANDARD_FLAGS) $@ $<
 
+test13.bin: test13.o
+	gcc -o $@ $<
+test13.o: test13.c
+	gcc $(STANDARD_FLAGS) $@ $< -DDEBUG=0
+
 clean:
-	rm -rf *.bin
+	rm -rf *.o *.bin
