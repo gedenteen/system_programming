@@ -51,25 +51,32 @@ int main() {
     printf("sizeof(struct test4) = %ld \n", sizeof(struct test4));
     printf("sizeof(struct test5) = %ld \n", sizeof(struct test5));
 
+    /// переменные для измерения времени:
+    struct timespec mt1, mt2;
+    double time_d;
+    
     ///сравнение времени:
-    clock_t start_t, stop_t;
-    //t1.b = 0;
-    start_t = clock();
+    t1.b = 0;
+    clock_gettime(CLOCK_REALTIME, &mt1);
     for (long long j = 0; j < 1e9; j++) {
         t1.b += 2;
     }
-    stop_t = clock();
+    clock_gettime(CLOCK_REALTIME, &mt2);
     printf("t1.b = %d \n", t1.b);
-    printf("ticks for struct test1 = %ld \n", stop_t - start_t);
+    time_d = (double)(mt2.tv_sec - mt1.tv_sec) +
+             (double)(mt2.tv_nsec - mt1.tv_nsec) / 1e9; ///время в секундах
+    printf("seconds for struct test1 = %f \n", time_d);
 
-    //t3.b = 0;
-    start_t = clock();
+    t3.b = 0;
+    clock_gettime(CLOCK_REALTIME, &mt1);
     for (long long j = 0; j < 1e9; j++) {
         t3.b += 2;
     }
-    stop_t = clock();
+    clock_gettime(CLOCK_REALTIME, &mt2);
     printf("t3.b = %d \n", t3.b);
-    printf("ticks for struct test3 = %ld \n", stop_t - start_t);
+    time_d = (double)(mt2.tv_sec - mt1.tv_sec) +
+             (double)(mt2.tv_nsec - mt1.tv_nsec) / 1e9; ///время в секундах
+    printf("seconds for struct test1 = %f \n", time_d);
 
     return 0;
 }
